@@ -17,7 +17,11 @@ env:
 
 jobs:
   build-and-publish:
-    runs-on: ubuntu-22.04
+    # Self-hosted runner on JHB. Has rsync, tar, sha256sum, gcloud
+    # pre-installed; google-github-actions/auth + setup-gcloud install
+    # their own gcloud SDK into the runner's tool cache regardless, so
+    # the system gcloud is not relied on by the auth step.
+    runs-on: [self-hosted, jhb]
     steps:
       - uses: actions/checkout@v4
 

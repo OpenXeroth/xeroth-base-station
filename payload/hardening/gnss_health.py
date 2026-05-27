@@ -402,7 +402,10 @@ def upload_log_signals() -> dict:
         msg = m.group(2)
         if msg.startswith("Uploaded ") or msg.startswith("Retry-uploaded "):
             # "Uploaded 202604211210.obs to gs://..."
-            head = "Retry-uploaded " if msg.startswith("Retry-uploaded ") else "Uploaded "
+            if msg.startswith("Retry-uploaded "):
+                head = "Retry-uploaded "
+            else:
+                head = "Uploaded "
             fname = msg[len(head):].split(" to ", 1)[0]
             last_upload_epoch = ts
             last_upload_file = fname

@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rtklib + tailscale (needed for systemd-analyze verify)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+              rtklib shellcheck bats python3-pip systemd
+          # Tailscale binary is fine; we don't start the daemon — systemd-analyze
+          # verify only needs the unit files referenced by ours to parse.
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Install Python tooling
+        run: |
+          python3 -m pip install --break-system-packages \
+              ruff pyflakes pyyaml
+
+      - name: VERSION must be strict semver
+        run: |
+          VERSION=$(tr -d '[:space:]' < VERSION)
+          echo "VERSION=${VERSION}"
+          [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || {
+              echo "ERROR: VERSION '${VERSION}' is not strict semver"; exit 1; }
+
+      - name: bash -n on every .sh
+        run: |
+          find . -type f -name "*.sh" -not -path "./.git/*" -print0 \
+            | xargs -0 -n1 bash -n
+
+      - name: shellcheck on every .sh
+        run: |
+          find . -type f -name "*.sh" -not -path "./.git/*" -print0 \
+            | xargs -0 shellcheck -x --severity=warning
+
+      - name: ruff on payload Python
+        run: |
+          ruff check \
+              --select=E,F,W,B,UP \
+              --target-version=py39 \
+              payload/
+
+      - name: pyflakes on payload Python
+        run: |
+          pyflakes payload/
+
+      - name: systemd-analyze verify on every .service
+        run: |
+          # Drop unit files into /etc/systemd/system so After=/Wants= refs resolve
+          sudo install -m 0644 payload/systemd/*.service /etc/systemd/system/
+          sudo systemd-analyze verify \
+              /etc/systemd/system/gnss-capture.service \
+              /etc/systemd/system/gnss-health.service
+
+      - name: bats test suite
+        run: |
+          bats -r tests/bats/

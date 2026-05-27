@@ -1,0 +1,89 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation
+
+env:
+  PROJECT: xeroth-base-stations
+  RELEASE_BUCKET: gs://xeroth-base-stations-releases
+  RELEASER_SA: github-releaser@xeroth-base-stations.iam.gserviceaccount.com
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm tag matches VERSION
+        run: |
+          set -euo pipefail
+          VERSION=$(tr -d '[:space:]' < VERSION)
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "${VERSION}" != "${TAG}" ]; then
+              echo "ERROR: VERSION (${VERSION}) does not match tag (${TAG})" >&2
+              exit 1
+          fi
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
+      - name: Build tarball
+        run: |
+          set -euo pipefail
+          # The tarball reproduces the on-station expected layout:
+          # extracting it yields a top-level base_station/ directory with
+          # install.sh, VERSION, payload/, etc.  This is what
+          # gnss_update_agent.sh + apply_update.sh expect.
+          mkdir -p /tmp/pack/base_station
+          rsync -a --exclude='.git' --exclude='.github' \
+                --exclude='tests/' --exclude='docs/' \
+                --exclude='infra/' --exclude='station-configs.example/' \
+                --exclude='tools/' --exclude='CHANGELOG.md' \
+                --exclude='README.md' --exclude='LICENSE' \
+                ./ /tmp/pack/base_station/
+          # install.sh, payload/, VERSION are what install.sh actually needs.
+          # Drop everything else from the tarball to keep it minimal.
+          ls -la /tmp/pack/base_station/
+          tar -czf "base_station-v${VERSION}.tar.gz" -C /tmp/pack base_station
+          sha256sum "base_station-v${VERSION}.tar.gz" | awk '{print $1}' \
+            > "base_station-v${VERSION}.tar.gz.sha256"
+          ls -la "base_station-v${VERSION}.tar.gz"*
+
+      - id: auth
+        name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.RELEASER_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT }}
+
+      - name: Publish tarball + sidecar
+        run: |
+          set -euo pipefail
+          gcloud storage cp \
+              "base_station-v${VERSION}.tar.gz" \
+              "base_station-v${VERSION}.tar.gz.sha256" \
+              "${RELEASE_BUCKET}/base_station/v${VERSION}/"
+          gcloud storage ls -l "${RELEASE_BUCKET}/base_station/v${VERSION}/"
+
+      - name: Summary
+        run: |
+          echo "## Published v${VERSION}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Tarball: \`${RELEASE_BUCKET}/base_station/v${VERSION}/base_station-v${VERSION}.tar.gz\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- SHA256 sidecar: \`${RELEASE_BUCKET}/base_station/v${VERSION}/base_station-v${VERSION}.tar.gz.sha256\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Channel pointer NOT moved automatically. To promote:" >> "${GITHUB_STEP_SUMMARY}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`\`\`bash" >> "${GITHUB_STEP_SUMMARY}"
+          echo "printf '%s\\n' '${VERSION}' | gcloud storage cp - ${RELEASE_BUCKET}/base_station/channels/stable.version" >> "${GITHUB_STEP_SUMMARY}"
+          echo "\`\`\`" >> "${GITHUB_STEP_SUMMARY}"

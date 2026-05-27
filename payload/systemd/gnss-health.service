@@ -1,0 +1,37 @@
+[Unit]
+Description=snareSAR GNSS Base Station — Health HTTP endpoint (Tailscale-only)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+Requires=tailscaled.service
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/xeroth/base_station/scripts/gnss_health.py
+User=xeroth
+Restart=on-failure
+RestartSec=10
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/home/xeroth/base_station
+# gcloud writes to ~/.config/gcloud/ (logs + credentials.db-journal) even for
+# read-only operations like `auth list`. ProtectHome=read-only blocks this;
+# ReadWritePaths re-grants write on that subtree specifically, so the
+# gcs_auth_active() probe in gnss_health.py succeeds.
+ReadWritePaths=/var/run /home/xeroth/.config/gcloud
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+# AF_NETLINK needed for `ip -4 addr` to enumerate Tailscale IP
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

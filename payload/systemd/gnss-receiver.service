@@ -1,0 +1,20 @@
+[Unit]
+Description=Configure ZED-F9P GNSS receiver for UBX output on UART1 at 115200 baud
+After=dev-ttyUSB0.device multi-user.target
+Wants=dev-ttyUSB0.device
+# StartLimit directives belong in [Unit], not [Service]
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/xeroth/base_station/scripts/ensure_receiver.py
+User=xeroth
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=15
+# Guard against runaway: no more than 5 retries in 600s (see [Unit] above)
+
+[Install]
+WantedBy=multi-user.target

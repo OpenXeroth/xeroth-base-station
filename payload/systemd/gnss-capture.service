@@ -1,0 +1,59 @@
+[Unit]
+Description=snareSAR GNSS Base Station — continuous UBX capture (zero-gap)
+After=network-online.target dev-ttyUSB0.device
+Wants=dev-ttyUSB0.device
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=xeroth
+# ensure_receiver.py probes /dev/ttyUSB0, verifies UBX at 115200, and
+# re-applies CFG-VALSET if the receiver has lost configuration (e.g. after
+# brown-out). A non-zero exit triggers the normal failure path
+# (Restart=on-failure). This replaces the standalone gnss-receiver.service
+# oneshot which is now deprecated and masked by install.sh.
+ExecStartPre=/usr/bin/python3 /home/xeroth/base_station/scripts/ensure_receiver.py
+#
+# str2str runs as a resident process holding /dev/ttyUSB0 exclusively,
+# writing UBX to /home/xeroth/base_station/logs/raw/%Y%m%d%h%M.ubx and
+# swapping files on every 10-minute UTC boundary. RTKLIB's swap interval
+# is in hours; S=0.16667 -> int(0.16667*3600) = 600 s (the int cast in
+# stream.c openfile_ means boundaries are exact multiples of 600 s,
+# aligned with UTC :00/:10/:20/:30/:40/:50).
+#
+# -f 30 (swap margin, seconds): str2str pre-opens the next rotation file
+# 30 s before the swap instant and performs an atomic switch at the
+# boundary. Data up to the boundary lands in file N; data from the
+# boundary onward lands in file N+1. No bytes are dropped at the seam.
+#
+# Filename example: /home/xeroth/base_station/logs/raw/202604211240.ubx
+#
+# %% is doubled because systemd itself interprets a bare % as a unit
+# specifier (e.g. %h = /root, %m = machine ID). Each %% collapses to a
+# single % at ExecStart expansion time, so str2str receives the literal
+# "%Y%m%d%h%M" and does its own RTKLIB-style expansion.
+ExecStart=/usr/local/bin/str2str \
+  -in serial://ttyUSB0:115200:8:n:1:off \
+  -out "file:///home/xeroth/base_station/logs/raw/%%Y%%m%%d%%h%%M.ubx::T::S=0.16667" \
+  -f 30
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/xeroth/base_station/logs/raw /home/xeroth/base_station/state
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

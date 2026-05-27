@@ -1,0 +1,11 @@
+# Editor / OS
+.DS_Store
+*.swp
+__pycache__/
+*.pyc
+
+# Local-only test artefacts
+*.log
+*.out
+*.tar.gz
+*.tar.gz.sha256

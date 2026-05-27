@@ -23,7 +23,7 @@ jobs:
     # the system gcloud is not relied on by the auth step.
     runs-on: [self-hosted, jhb]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Confirm tag matches VERSION
         run: |
@@ -58,24 +58,41 @@ jobs:
             > "base_station-v${VERSION}.tar.gz.sha256"
           ls -la "base_station-v${VERSION}.tar.gz"*
 
+      - name: Generate SBOM (SPDX) for the tarball
+        # Anchore's SBOM action runs syft against the build output dir
+        # and emits an SPDX JSON document alongside the tarball. The
+        # SBOM enumerates every file shipped in the release with its
+        # SHA-256; an operator (or downstream auditor) can diff it
+        # against the on-station filesystem to confirm exactly what
+        # was applied.
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with:
+          path: /tmp/pack/base_station
+          format: spdx-json
+          artifact-name: base_station-v${{ env.VERSION }}.spdx.json
+          output-file: base_station-v${{ env.VERSION }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
       - id: auth
         name: Authenticate to GCP via Workload Identity Federation
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed  # v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ env.RELEASER_SA }}
 
       - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f  # v2
         with:
           project_id: ${{ env.PROJECT }}
 
-      - name: Publish tarball + sidecar
+      - name: Publish tarball + sidecar + SBOM
         run: |
           set -euo pipefail
           gcloud storage cp \
               "base_station-v${VERSION}.tar.gz" \
               "base_station-v${VERSION}.tar.gz.sha256" \
+              "base_station-v${VERSION}.spdx.json" \
               "${RELEASE_BUCKET}/base_station/v${VERSION}/"
           gcloud storage ls -l "${RELEASE_BUCKET}/base_station/v${VERSION}/"
 
@@ -85,6 +102,7 @@ jobs:
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Tarball: \`${RELEASE_BUCKET}/base_station/v${VERSION}/base_station-v${VERSION}.tar.gz\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "- SHA256 sidecar: \`${RELEASE_BUCKET}/base_station/v${VERSION}/base_station-v${VERSION}.tar.gz.sha256\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- SBOM (SPDX): \`${RELEASE_BUCKET}/base_station/v${VERSION}/base_station-v${VERSION}.spdx.json\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "Channel pointer NOT moved automatically. To promote:" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"

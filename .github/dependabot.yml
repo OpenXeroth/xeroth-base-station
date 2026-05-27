@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # GitHub Actions versions used by ci.yml + release.yml.
+  # Dependabot opens a PR when a new release of any pinned action
+  # is published; the SHA-pin is updated in the PR body, and CI
+  # has to pass before we merge.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+      include: scope

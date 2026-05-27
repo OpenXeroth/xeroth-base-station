@@ -7,6 +7,52 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.1.1] — 2026-05-27
+
+Patch release covering the cosmetic OTA-probe race observed during
+the v1.0.2 → v1.1.0 cutover on XER2, plus pre-public governance and
+release-pipeline hardening.
+
+Operator-visible changes:
+
+- **OTA agent post-install health probe is now resilient to slow
+  `gnss-health.service` re-binds.** `gnss_update_agent.sh` waits
+  15 s (was 5 s) before its first probe, then retries up to 3 times
+  with a 5 s gap. Tunable via `HEALTH_PROBE_INITIAL_SLEEP_S`,
+  `HEALTH_PROBE_RETRIES`, `HEALTH_PROBE_RETRY_SLEEP_S` env vars on
+  the cron line for stations on slow networks. Eliminates the
+  cosmetic `last_update_result: health_check_failed` that appeared
+  after every successful install on v1.1.0.
+- **No script behaviour changes beyond the probe.** Capture, upload
+  worker, disk guard, watchdog, install path: all unchanged.
+
+Release-pipeline changes:
+
+- **SBOM** (SPDX JSON) now ships in every release bucket alongside
+  the tarball and SHA-256 sidecar. Operators and auditors can diff
+  it against the on-station filesystem to confirm exactly what was
+  applied.
+- **GitHub Actions pinned to commit SHAs** in `ci.yml` and
+  `release.yml` (was floating `@v4` / `@v2` tags). Prevents a
+  supply-chain attack via tag re-pointing on upstream actions from
+  compromising the release SA.
+- **Dependabot** opens weekly PRs for action-version updates.
+- **CodeQL** runs on every push, every PR, and weekly on schedule.
+
+Repo governance:
+
+- `SECURITY.md` — disclosure policy and reporting channel.
+- `CONTRIBUTING.md` — development setup and merge bar.
+- `CODE_OF_CONDUCT.md` — adopts Contributor Covenant 2.1.
+- `infra/README.md` § "Per-station uploader" now documents that
+  unconditional `roles/storage.objectUser` on the data bucket is
+  the correct grant. The previous example using a
+  `resource.name.startsWith(...)` IAM condition does not work for
+  `gcloud storage cp` (the precheck list operation is bucket-level
+  and the condition evaluates to false against the bucket
+  resource). Per-station isolation comes from each station having
+  its own SA, not from prefix-scoped IAM.
+
 ## [1.1.0] — 2026-05-27
 
 First release under `OpenXeroth/xeroth-base-station`. The code is

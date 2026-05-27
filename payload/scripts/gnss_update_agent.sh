@@ -215,12 +215,34 @@ fi
 log "INSTALL_OK: v${TARGET_VERSION}"
 
 # --- Post-install health probe ----------------------------------------------
-# install.sh restarts gnss-health.service and gnss-capture.service; give
-# the python HTTP server a moment to re-bind before probing.
-sleep 5
-HEALTH_JSON=$(${TIMEOUT_EXEC} 5 ${CURL_EXEC} -sS "${HEALTH_URL_DEFAULT}" 2>/dev/null || true)
-if ! echo "${HEALTH_JSON}" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
-    log "HEALTH_CHECK_FAILED: ${HEALTH_URL_DEFAULT} did not return status=ok after install"
+# install.sh restarts gnss-health.service AND gnss-capture.service. The
+# python HTTP server needs time to (1) tear down the previous process,
+# (2) re-bind the Tailscale port, (3) collect a first valid snapshot.
+# Empirically (v1.1.0 cutover on XER2) a 5-second wait races: the agent
+# would probe before the server had finished binding and record a
+# cosmetic 'health_check_failed' in last_update_result even though the
+# install was fine. The probe is also retried up to N times so a slow
+# Tailscale interface bring-up doesn't trip it either.
+HEALTH_PROBE_INITIAL_SLEEP_S=${HEALTH_PROBE_INITIAL_SLEEP_S:-15}
+HEALTH_PROBE_RETRIES=${HEALTH_PROBE_RETRIES:-3}
+HEALTH_PROBE_RETRY_SLEEP_S=${HEALTH_PROBE_RETRY_SLEEP_S:-5}
+
+sleep "${HEALTH_PROBE_INITIAL_SLEEP_S}"
+attempt=0
+health_ok=0
+while [ "${attempt}" -lt "${HEALTH_PROBE_RETRIES}" ]; do
+    attempt=$((attempt + 1))
+    HEALTH_JSON=$(${TIMEOUT_EXEC} 5 ${CURL_EXEC} -sS "${HEALTH_URL_DEFAULT}" 2>/dev/null || true)
+    if echo "${HEALTH_JSON}" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+        health_ok=1
+        break
+    fi
+    if [ "${attempt}" -lt "${HEALTH_PROBE_RETRIES}" ]; then
+        sleep "${HEALTH_PROBE_RETRY_SLEEP_S}"
+    fi
+done
+if [ "${health_ok}" -ne 1 ]; then
+    log "HEALTH_CHECK_FAILED: ${HEALTH_URL_DEFAULT} did not return status=ok after install (${HEALTH_PROBE_RETRIES} attempts)"
     # Don't auto-rollback yet — a permanent failure here requires
     # operator attention. Record it loudly and leave the install in
     # place (install.sh has already started the new services).

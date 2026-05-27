@@ -69,29 +69,26 @@ gcloud storage buckets describe gs://xeroth-base-stations-releases \
 
 ## Per-station uploader service account
 
-Each station needs its own service account and key, with
-`roles/storage.objectUser` scoped to **its own prefix** under
-`gs://xeroth-base-stations-data` (not the whole bucket — per-station
-isolation is the point).
-
-The narrow IAM binding uses a `resource.name` condition that pins
-writes to `objects/${STATION_ID}/*`. This keeps any one compromised
-key from being able to overwrite another station's data.
+Each station needs its own service account and key with
+`roles/storage.objectUser` on `gs://xeroth-base-stations-data`, plus
+read access on the releases bucket so the OTA agent can poll the
+channel pointer.
 
 ```bash
 PROJECT=xeroth-base-stations
 STATION=MY_STATION
-SA_ID="station-${STATION,,}-uploader"   # lowercased
+SA_ID="station-$(echo "${STATION}" | tr 'A-Z' 'a-z')-uploader"
 
 gcloud iam service-accounts create "${SA_ID}" \
     --project="${PROJECT}" \
     --display-name="GNSS station ${STATION} uploader"
 
+# Write/list/delete on the data bucket (no IAM condition — see below
+# for why prefix-scoped conditions do NOT work here).
 gcloud storage buckets add-iam-policy-binding \
     gs://xeroth-base-stations-data \
     --role=roles/storage.objectUser \
-    --member="serviceAccount:${SA_ID}@${PROJECT}.iam.gserviceaccount.com" \
-    --condition="title=${STATION}-prefix-only,expression=resource.name.startsWith('projects/_/buckets/xeroth-base-stations-data/objects/${STATION}/')"
+    --member="serviceAccount:${SA_ID}@${PROJECT}.iam.gserviceaccount.com"
 
 # Read-only on the releases bucket so the OTA agent can poll the
 # channel pointer and fetch tarballs.
@@ -110,6 +107,35 @@ gcloud iam service-accounts keys create \
 #   sudo -u xeroth gcloud auth activate-service-account \
 #       --key-file=/home/xeroth/base_station/gnss-uploader-key.json
 ```
+
+### Why the SA is granted bucket-wide rather than prefix-scoped
+
+An earlier iteration of this doc recommended a `resource.name.startsWith(...)`
+IAM condition to constrain each station's writes to its own
+`${STATION_ID}/` prefix. That **does not work** with the gcloud
+storage client the upload worker uses.
+
+`gcloud storage cp` performs a bucket-level destination-type
+precheck (an implicit `storage.objects.list` against the bucket
+root) before writing. The `resource.name` condition evaluates to
+false for bucket-level operations because the resource being
+checked is the bucket, not an object under the prefix — so the
+copy fails with `storage.objects.list denied` even though the
+specific object the SA wants to create matches the condition.
+
+Per-station isolation is therefore achieved at the **service-account
+level**: each station has its own SA and its own key file. A
+compromise of one station's key gives the attacker write access to
+the entire data bucket but does not give them access to any other
+station's *key* and does not give them access to any other GCP
+resource in the project. The blast radius is one bucket's data
+contents.
+
+A future architectural option for stronger isolation: replace the
+direct GCS upload with a signed-URL upload via the rinex-api
+(`POST /v1/stations/{id}/observations/upload`), which can issue
+short-lived URLs scoped to a single object. That work is tracked in
+[`OpenXeroth/rinex-api`](https://github.com/OpenXeroth/rinex-api).
 
 ## GitHub Actions release pipeline
 

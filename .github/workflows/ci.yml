@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint-test:
     # Self-hosted runner on the JHB VM (Ubuntu 24.04 x86_64). The runner

@@ -10,15 +10,53 @@ permissions:
 
 jobs:
   lint-test:
-    # Self-hosted runner on the JHB VM (Ubuntu 24.04 x86_64). The runner
-    # has rtklib, shellcheck, bats, jq, ruff, pyflakes, python3, systemd
-    # pre-installed; see infra/SELF_HOSTED_RUNNER.md for the provisioning
-    # the runner host needs. If/when GitHub-hosted runners are reinstated
-    # for this repo, change runs-on to ubuntu-22.04 and reinstate an
-    # apt-get + pip install step before the lint steps below.
-    runs-on: [self-hosted, jhb]
+    # Tingana: an ephemeral Cloud Run runner, NOT the JHB VM. This job used to
+    # run on naturecam-jhb, the production wildlife-streaming box, purely
+    # because that machine happened to have the tools preinstalled.
+    #
+    # Nothing is preinstalled here. Measured on the Tingana image
+    # (NatureCam run 32880886492): Ubuntu 22.04, 9 CPUs, 32 GB, uid 1000;
+    # python3, git, jq, curl and openssl present; shellcheck, bats, ruff,
+    # pyflakes, node and docker all MISSING; sudo present but permanently
+    # unusable (the no-new-privileges flag is set), so apt-get install can
+    # never work. Every tool below is therefore fetched into the workspace
+    # without root.
+    runs-on: [self-hosted, tingana]
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install ruff and pyflakes
+        run: pip install ruff pyflakes
+
+      - name: Install shellcheck and bats (no root available)
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/bin"
+
+          SC_VER=v0.10.0
+          curl -sSfL "https://github.com/koalaman/shellcheck/releases/download/${SC_VER}/shellcheck-${SC_VER}.linux.x86_64.tar.xz" \
+            | tar -xJ -C "${RUNNER_TEMP}" "shellcheck-${SC_VER}/shellcheck"
+          mv "${RUNNER_TEMP}/shellcheck-${SC_VER}/shellcheck" "${RUNNER_TEMP}/bin/"
+
+          git clone --depth 1 --branch v1.11.0 \
+            https://github.com/bats-core/bats-core.git "${RUNNER_TEMP}/bats-core"
+          "${RUNNER_TEMP}/bats-core/install.sh" "${RUNNER_TEMP}/bats-prefix"
+          ln -s "${RUNNER_TEMP}/bats-prefix/bin/bats" "${RUNNER_TEMP}/bin/bats"
+
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      - name: Report what this runner actually provides
+        # Recorded on every run so release.yml can be migrated on measurement
+        # rather than assumption: it needs rsync, tar, sha256sum and gcloud.
+        run: |
+          for t in shellcheck bats ruff pyflakes systemd-analyze rsync tar sha256sum gcloud jq; do
+            printf '%-16s ' "$t"
+            command -v "$t" >/dev/null 2>&1 && command -v "$t" || echo "MISSING"
+          done
 
       - name: VERSION must be strict semver
         run: |
@@ -48,21 +86,37 @@ jobs:
         run: |
           pyflakes payload/
 
-      - name: systemd-analyze verify on every .service
-        # The runner host has str2str and convbin symlinked into
-        # /usr/local/bin/ so ExecStart= path-existence checks pass.
-        # We run systemd-analyze verify directly against the source
-        # files — it resolves After=/Wants= against the runner's
-        # installed system units (network-online.target, tailscaled.service,
-        # dev-ttyUSB0.device — the latter may be a soft fail on a
-        # machine with no FTDI cable attached, which is fine).
+      - name: Check systemd unit files
+        # This used to be `systemd-analyze verify`, which needs systemd and a
+        # host whose /usr/local/bin has str2str and convbin symlinked in so
+        # ExecStart= path checks resolve. A container runner has neither.
+        #
+        # The old step ended in `|| { echo warning; true; }`, which swallows
+        # command-not-found too -- so simply moving it would have produced a
+        # green check that ran nothing. It either runs, or it says out loud
+        # that it did not.
         run: |
-          systemd-analyze verify --recursive-errors=no \
-              payload/systemd/gnss-capture.service \
-              payload/systemd/gnss-health.service || {
-              echo "::warning::systemd-analyze verify reported issues — see log for resolver-level findings"
+          set -euo pipefail
+          UNITS="payload/systemd/gnss-capture.service payload/systemd/gnss-health.service"
+
+          if command -v systemd-analyze >/dev/null 2>&1; then
+            systemd-analyze verify --recursive-errors=no $UNITS || {
+              echo "::warning::systemd-analyze verify reported issues — see log"
               true
-          }
+            }
+          else
+            echo "::warning::systemd-analyze is not available on this runner; \
+          running a structural check instead. Restoring the full check needs \
+          systemd in the runner image."
+            EXIT=0
+            for unit in $UNITS; do
+              echo "Checking $unit..."
+              grep -q '^\[Unit\]' "$unit"    || { echo "ERROR: $unit missing [Unit]"; EXIT=1; }
+              grep -q '^\[Service\]' "$unit" || { echo "ERROR: $unit missing [Service]"; EXIT=1; }
+              grep -q '^ExecStart=' "$unit"   || { echo "ERROR: $unit missing ExecStart="; EXIT=1; }
+            done
+            exit $EXIT
+          fi
 
       - name: bats test suite
         run: |

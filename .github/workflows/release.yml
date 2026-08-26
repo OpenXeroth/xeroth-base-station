@@ -17,11 +17,27 @@ env:
 
 jobs:
   build-and-publish:
-    # Self-hosted runner on JHB. Has rsync, tar, sha256sum, gcloud
-    # pre-installed; google-github-actions/auth + setup-gcloud install
-    # their own gcloud SDK into the runner's tool cache regardless, so
-    # the system gcloud is not relied on by the auth step.
-    runs-on: [self-hosted, jhb]
+    # GitHub-hosted. This job used to run on [self-hosted, jhb] -- the
+    # NatureCam production VM. Those runners were deleted on 2026-08-26, and a
+    # job labelled `jhb` no longer fails: it queues forever with no runner
+    # assigned. A tag push would have produced no tarball, no error, and no
+    # signal that the release had not been cut.
+    #
+    # Hosted, not [self-hosted, tingana], for two reasons:
+    #   1. This repository is PUBLIC, so hosted Actions are free and unlimited
+    #      here. The `ubuntu-latest` outage recorded in NatureCam issue #502 is
+    #      a private-repo condition and does not apply.
+    #   2. GitHub withholds self-hosted runners from public repositories unless
+    #      the org runner group opts in, because a fork's pull request could
+    #      then execute arbitrary code on our own infrastructure. That gate is
+    #      deliberately closed and must stay closed.
+    #
+    # Every tool this job uses is present on the hosted image (verified against
+    # actions/runner-images Ubuntu2404-Readme.md): rsync 3.2.7, tar 1.35,
+    # coreutils 9.4 for sha256sum. gcloud is never taken from the system -- it
+    # is installed into the tool cache by google-github-actions/setup-gcloud
+    # below, which runs before the first gcloud invocation.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 

@@ -10,18 +10,30 @@ permissions:
 
 jobs:
   lint-test:
-    # Tingana: an ephemeral Cloud Run runner, NOT the JHB VM. This job used to
-    # run on naturecam-jhb, the production wildlife-streaming box, purely
-    # because that machine happened to have the tools preinstalled.
+    # GitHub-hosted. This job used to run on naturecam-jhb, the production
+    # wildlife-streaming box, purely because that machine happened to have
+    # shellcheck, bats, ruff and pyflakes installed. Those runners were deleted
+    # on 2026-08-26.
     #
-    # Nothing is preinstalled here. Measured on the Tingana image
-    # (NatureCam run 32880886492): Ubuntu 22.04, 9 CPUs, 32 GB, uid 1000;
-    # python3, git, jq, curl and openssl present; shellcheck, bats, ruff,
-    # pyflakes, node and docker all MISSING; sudo present but permanently
-    # unusable (the no-new-privileges flag is set), so apt-get install can
-    # never work. Every tool below is therefore fetched into the workspace
-    # without root.
-    runs-on: [self-hosted, tingana]
+    # An earlier revision of this file targeted [self-hosted, tingana]. That
+    # cannot work here: GitHub withholds self-hosted runners from PUBLIC
+    # repositories unless the org runner group sets
+    # allows_public_repositories, because a fork's pull request could then run
+    # arbitrary code on our infrastructure. Measured 2026-08-26 -- the org's
+    # Default runner group has it false, and this job sat queued for 220s with
+    # no runner assigned before being cancelled. That gate should stay closed.
+    #
+    # Hosted is the right answer instead: this repository is public, so hosted
+    # Actions are free and unlimited. The ubuntu-latest condition in NatureCam
+    # issue #502 is private-repo only and does not apply here.
+    #
+    # Tools are still fetched explicitly below rather than taken from the
+    # image. Verified against actions/runner-images: the image DOES ship
+    # shellcheck, but 0.9.0 on 24.04 and 0.8.0 on 22.04 -- so relying on it
+    # would let the linter's version drift silently when ubuntu-latest moves.
+    # bats is not on the image at all. Pinning both keeps lint results
+    # reproducible. Neither install needs root.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
@@ -95,6 +107,11 @@ jobs:
         # command-not-found too -- so simply moving it would have produced a
         # green check that ran nothing. It either runs, or it says out loud
         # that it did not.
+        #
+        # On ubuntu-latest the primary branch is the one that runs: the hosted
+        # image ships systemd 255.4 (verified against actions/runner-images),
+        # so systemd-analyze is present and the real check executes. The
+        # fallback is kept for the case where it is not.
         run: |
           set -euo pipefail
           UNITS="payload/systemd/gnss-capture.service payload/systemd/gnss-health.service"

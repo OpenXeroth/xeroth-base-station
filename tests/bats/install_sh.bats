@@ -79,3 +79,16 @@ setup() {
     grep -qE 'DEFAULT_CHANNEL="?canary"?' "$INSTALL"
     grep -qE 'DEFAULT_CHANNEL="?stable"?' "$INSTALL"
 }
+
+@test "install.sh reads UPLOAD_KEY under set -euo pipefail, with and without a key" {
+    # v1.2.0 stopped on XER2 at this step: no UPLOAD_KEY line, grep exit 1, pipefail.
+    awk '/^conf_upload_key\(\)/,/^\}/' "$INSTALL" > "$BATS_TEST_TMPDIR/fn.sh"
+    [ -s "$BATS_TEST_TMPDIR/fn.sh" ]
+    printf 'STATION_ID=XER2\n4974523.9720 3008024.3060 -2616592.1730\n' > "$BATS_TEST_TMPDIR/nokey.conf"
+    printf 'STATION_ID=XER7\nUPLOAD_KEY=xrx_abc_def\n' > "$BATS_TEST_TMPDIR/key.conf"
+    run bash -c "set -euo pipefail; source '$BATS_TEST_TMPDIR/fn.sh'; k=\$(conf_upload_key '$BATS_TEST_TMPDIR/nokey.conf'); echo \"done[\$k]\""
+    [ "$status" -eq 0 ]
+    [ "$output" = "done[]" ]
+    run bash -c "set -euo pipefail; source '$BATS_TEST_TMPDIR/fn.sh'; k=\$(conf_upload_key '$BATS_TEST_TMPDIR/key.conf'); echo \"done[\$k]\""
+    [ "$output" = "done[xrx_abc_def]" ]
+}

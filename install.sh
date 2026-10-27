@@ -122,8 +122,14 @@ STATION_ID=$(grep -E '^[[:space:]]*STATION_ID[[:space:]]*=' "${STATION_CONF}" \
 echo "    STATION_ID=${STATION_ID}"
 # station.conf may hold the station's upload key.
 chmod 0600 "${STATION_CONF}"
-UPLOAD_KEY=$(grep -E '^[[:space:]]*UPLOAD_KEY[[:space:]]*=' "${STATION_CONF}" \
-             | head -n 1 | sed 's/^[[:space:]]*UPLOAD_KEY[[:space:]]*=[[:space:]]*//' | tr -d '"')
+# A station without a key has no UPLOAD_KEY line; grep then exits 1, which
+# under pipefail would stop the install (it stopped v1.2.0 on XER2), so a
+# miss is made explicit.
+conf_upload_key() {
+    { grep -E '^[[:space:]]*UPLOAD_KEY[[:space:]]*=' "$1" || true; } \
+        | head -n 1 | sed 's/^[[:space:]]*UPLOAD_KEY[[:space:]]*=[[:space:]]*//' | tr -d '"'
+}
+UPLOAD_KEY=$(conf_upload_key "${STATION_CONF}")
 if [ -n "${UPLOAD_KEY}" ]; then
     echo "    uploads: Xeroth network key (no gcloud, no over-the-air updates; update with git pull and re-run install.sh)"
 else

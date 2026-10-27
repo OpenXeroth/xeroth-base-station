@@ -7,6 +7,18 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.1] — 2026-10-27
+
+Fixed:
+
+- `install.sh` stopped after step 3 on any station without `UPLOAD_KEY=`
+  in `station.conf`: the lookup's `grep` found nothing and exited 1, which
+  `set -o pipefail` turned into the end of the install. It stopped the
+  1.2.0 over-the-air install on XER2 with the new scripts copied but the
+  rest of the install not run. The lookup is now a function that treats
+  no match as an empty key, and a test runs it under `set -euo pipefail`
+  with and without a key.
+
 ## [1.2.0] — 2026-10-27
 
 Added:

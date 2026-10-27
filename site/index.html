@@ -19,7 +19,7 @@
     <a href="/build/">Build a station</a>
     <a href="/#join">Join the network</a>
     <a href="/#data">Get RINEX</a>
-    <a href="/dashboard">Sign in</a>
+    <a href="/auth/login?return_to=/dashboard">Sign in</a>
     <a class="nav-github" href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
   </nav>
 </div></div></header>
@@ -116,7 +116,7 @@
     <ol>
       <li><a href="/apply/consumer">Apply for data access</a>, or <a href="/apply/operator">as a station operator</a>. You sign in with your Google account and say what you need the data for.</li>
       <li>Xeroth reviews each application by hand and emails you the decision.</li>
-      <li>Once approved, <a href="/dashboard">sign in to your dashboard</a>. Your key is shown there once: copy it then.</li>
+      <li>Once approved, <a href="/auth/login?return_to=/dashboard">sign in to your dashboard</a>. Your key is shown there once: copy it then.</li>
     </ol>
     <p>Send the key as a Bearer token. List the stations:</p>
 <pre>curl -H "Authorization: Bearer xrx_..." https://base.xeroth.ai/v1/stations</pre>

@@ -96,3 +96,22 @@ teardown() {
         false
     }
 }
+
+@test "the post-install health probe goes to the Tailscale address, not localhost" {
+    AGENT="${BATS_TEST_DIRNAME}/../../payload/scripts/gnss_update_agent.sh"
+    awk '/^tailscale_health_url\(\)/,/^\}/' "$AGENT" > "$BATS_TEST_TMPDIR/fn.sh"
+    [ -s "$BATS_TEST_TMPDIR/fn.sh" ]
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat > "$BATS_TEST_TMPDIR/bin/ip" <<'IP'
+#!/bin/sh
+echo "1: lo    inet 127.0.0.1/8 scope host lo"
+echo "2: eth0    inet 192.168.1.20/24 brd 192.168.1.255 scope global eth0"
+echo "3: tailscale0    inet 100.119.39.119/32 scope global tailscale0"
+IP
+    chmod +x "$BATS_TEST_TMPDIR/bin/ip"
+    run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" bash -c "source '$BATS_TEST_TMPDIR/fn.sh'; tailscale_health_url"
+    [ "$output" = "http://100.119.39.119:8080/health" ]
+    printf '#!/bin/sh\necho "1: lo    inet 127.0.0.1/8 scope host lo"\n' > "$BATS_TEST_TMPDIR/bin/ip"
+    run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" bash -c "source '$BATS_TEST_TMPDIR/fn.sh'; tailscale_health_url"
+    [ -z "$output" ]
+}

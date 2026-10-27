@@ -36,7 +36,19 @@ UPDATE_LOG="${STATE_DIR}/updates.log"
 LOCK_FILE="/tmp/gnss-update-agent.lock"
 STAGE_ROOT="/home/xeroth/base_station/staging"
 STATION_CONF="/home/xeroth/base_station/scripts/station.conf"
-HEALTH_URL_DEFAULT="http://localhost:8080/health"
+# gnss-health.service listens only on the host's Tailscale address
+# (100.64.0.0/10), never on localhost, so that is where to ask. Until
+# 1.2.2 this probed localhost and every install since May reported
+# health_check_failed while the station was healthy.
+tailscale_health_url() {
+    local addr
+    addr=$(ip -4 -o addr 2>/dev/null \
+        | awk '{split($4, a, "/"); print a[1]}' \
+        | grep -E '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.' | head -n 1)
+    [ -n "${addr}" ] && echo "http://${addr}:8080/health"
+}
+HEALTH_URL_DEFAULT="$(tailscale_health_url || true)"
+HEALTH_URL_DEFAULT="${HEALTH_URL_DEFAULT:-http://localhost:8080/health}"
 
 GCLOUD_EXEC="/usr/bin/gcloud"
 TIMEOUT_EXEC="/usr/bin/timeout"

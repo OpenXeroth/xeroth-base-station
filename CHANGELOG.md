@@ -7,6 +7,17 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.2] — 2026-10-27
+
+Fixed:
+
+- After installing an update, the update agent checked the station's
+  health at `http://localhost:8080/health`. The health service listens
+  only on the host's Tailscale address, so every install since May
+  (1.1.0, 1.1.1, 1.2.1 on XER2) was recorded as `health_check_failed`
+  while the station was healthy, and the agent stopped before clearing
+  old staging folders. It now asks the Tailscale address.
+
 ## [1.2.1] — 2026-10-27
 
 Fixed:

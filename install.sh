@@ -120,6 +120,15 @@ fi
 STATION_ID=$(grep -E '^[[:space:]]*STATION_ID[[:space:]]*=' "${STATION_CONF}" \
              | head -n 1 | sed 's/^[[:space:]]*STATION_ID[[:space:]]*=[[:space:]]*//' | tr -d '"')
 echo "    STATION_ID=${STATION_ID}"
+# station.conf may hold the station's upload key.
+chmod 0600 "${STATION_CONF}"
+UPLOAD_KEY=$(grep -E '^[[:space:]]*UPLOAD_KEY[[:space:]]*=' "${STATION_CONF}" \
+             | head -n 1 | sed 's/^[[:space:]]*UPLOAD_KEY[[:space:]]*=[[:space:]]*//' | tr -d '"')
+if [ -n "${UPLOAD_KEY}" ]; then
+    echo "    uploads: Xeroth network key (no gcloud, no over-the-air updates; update with git pull and re-run install.sh)"
+else
+    echo "    uploads: gcloud service account, with over-the-air updates"
+fi
 
 echo "[4/10] Baud.conf"
 BAUD_FILE="${DEST_SCRIPTS}/baud.conf"
@@ -205,13 +214,18 @@ sudo -u "${USER_NAME}" sed -i '/gnss-watchdog\.sh/d' "${CRON_TMP}"
 sudo -u "${USER_NAME}" sed -i '/gnss-disk-guard\.sh/d' "${CRON_TMP}"
 sudo -u "${USER_NAME}" sed -i '/gnss_update_agent\.sh/d' "${CRON_TMP}"
 # Append canonical entries (v1.0.0 — continuous-capture, ring-buffer, OTA).
+# Over-the-air updates come from Xeroth's private release bucket, which
+# only a station with a Xeroth service account can read, so a station
+# uploading with a network key gets no update agent.
 sudo -u "${USER_NAME}" bash -c "cat >> '${CRON_TMP}' <<'EOF'
 # snareSAR GNSS base station — canonical cron (v1.0.0, continuous-capture + OTA)
 * * * * * ${DEST_SCRIPTS}/gnss_upload_worker.sh
 * * * * * ${DEST_SCRIPTS}/gnss-watchdog.sh
 */5 * * * * ${DEST_SCRIPTS}/gnss-disk-guard.sh
-*/10 * * * * ${DEST_SCRIPTS}/gnss_update_agent.sh
 EOF"
+if [ -z "${UPLOAD_KEY}" ]; then
+    sudo -u "${USER_NAME}" bash -c "echo '*/10 * * * * ${DEST_SCRIPTS}/gnss_update_agent.sh' >> '${CRON_TMP}'"
+fi
 sudo -u "${USER_NAME}" crontab "${CRON_TMP}"
 echo "    installed crontab for ${USER_NAME}"
 

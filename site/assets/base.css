@@ -1,0 +1,15 @@
+/* Additions to open.xeroth.ai's site.css for the base-station pages. */
+pre{background:var(--white);border:1px solid var(--line);border-radius:6px;padding:18px 20px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);margin:16px 0 24px}
+code{font:0.9em ui-monospace,SFMono-Regular,Menlo,monospace}
+.prose h2{font-size:clamp(34px,4vw,48px);margin:60px 0 18px}
+.prose h3{font:600 18px/1.4 var(--sans);margin:36px 0 10px;letter-spacing:0}
+.prose ol,.prose ul{padding-left:22px}
+.prose li{margin-bottom:8px}
+.spec{width:100%;border-collapse:collapse;font-size:14px}
+.spec th,.spec td{text-align:left;padding:13px 20px;border-bottom:1px solid var(--line);vertical-align:top}
+.spec thead th{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:600;background:var(--pale)}
+.spec tr:last-child td{border-bottom:0}
+.spec code{white-space:nowrap}
+.sky{background:var(--pale);border-radius:12px;padding:30px;border:1px solid #d1d9c9}
+.sky svg{width:100%;height:auto;display:block}
+@media(max-width:800px){.spec th,.spec td{padding:10px}pre{font-size:12px}}

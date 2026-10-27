@@ -131,11 +131,10 @@ station's *key* and does not give them access to any other GCP
 resource in the project. The blast radius is one bucket's data
 contents.
 
-A future architectural option for stronger isolation: replace the
-direct GCS upload with a signed-URL upload via the rinex-api
-(`POST /v1/stations/{id}/observations/upload`), which can issue
-short-lived URLs scoped to a single object. That work is tracked in
-[`OpenXeroth/rinex-api`](https://github.com/OpenXeroth/rinex-api).
+Stations that upload with a network key (`UPLOAD_KEY=` in
+`station.conf`) need no service account at all: the network service
+accepts each file only into the folder of the station the key belongs
+to.
 
 ## GitHub Actions release pipeline
 

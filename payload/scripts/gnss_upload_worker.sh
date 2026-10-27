@@ -7,9 +7,18 @@
 # %Y%m%d%h%M.ubx, rotating on every 10-minute UTC boundary). For each
 # closed file (i.e. every file whose slot is not the currently-writing
 # slot), it runs convbin → RINEX 3.03, injects APPROX POSITION XYZ from
-# station.conf, uploads .obs and .nav to GCS, verifies each upload, and
-# deletes the local copies on success. Files that fail to upload stay on
-# disk and are retried the next time this worker runs.
+# station.conf, uploads .obs and .nav, verifies each upload, and deletes
+# the local copies on success. Files that fail to upload stay on disk and
+# are retried the next time this worker runs.
+#
+# Two ways to upload, chosen by station.conf:
+#   UPLOAD_KEY=xrx_...  the station's key from the base.xeroth.ai dashboard.
+#                       Each file is PUT to the Xeroth network over HTTPS;
+#                       a 201 reply means it is stored. No Google Cloud
+#                       account is needed. This is how contributed
+#                       stations upload.
+#   (no UPLOAD_KEY)     gcloud storage cp straight into the data bucket,
+#                       with the service-account key file at GCS_KEY.
 #
 # Offline-resilience rules enforced here:
 #   1. convbin is only run if the matching RINEX does not already exist.
@@ -30,12 +39,13 @@
 set -u
 
 GCP_BUCKET="gs://xeroth-base-stations-data"
-LOG_DIR="/home/xeroth/base_station/logs"
+BASE_DIR="${GNSS_BASE_DIR:-/home/xeroth/base_station}"
+LOG_DIR="${BASE_DIR}/logs"
 RAW_DIR="${LOG_DIR}/raw"
-STATION_CONF="/home/xeroth/base_station/scripts/station.conf"
-GCS_KEY="/home/xeroth/base_station/gnss-uploader-key.json"
-LOCK_FILE="/tmp/gnss-upload-worker.lock"
-HEARTBEAT_FILE="/home/xeroth/base_station/state/upload.heartbeat"
+STATION_CONF="${BASE_DIR}/scripts/station.conf"
+GCS_KEY="${BASE_DIR}/gnss-uploader-key.json"
+LOCK_FILE="${GNSS_LOCK_FILE:-/tmp/gnss-upload-worker.lock}"
+HEARTBEAT_FILE="${BASE_DIR}/state/upload.heartbeat"
 MAX_LOG_BYTES=${MAX_LOG_BYTES:-10485760}
 LOG_RETENTION=${LOG_RETENTION:-7}
 GCLOUD_TIMEOUT_S=${GCLOUD_TIMEOUT_S:-45}
@@ -50,13 +60,19 @@ LOG_FILE="${LOG_DIR}/automation.log"
 mkdir -p "${LOG_DIR}" "${RAW_DIR}" 2>/dev/null || true
 mkdir -p "$(dirname "${HEARTBEAT_FILE}")" 2>/dev/null || true
 
-# --- Resolve STATION_ID -----------------------------------------------------
-STATION_ID=""
-if [ -f "${STATION_CONF}" ]; then
-    STATION_ID=$(grep -E '^[[:space:]]*STATION_ID[[:space:]]*=' "${STATION_CONF}" \
-                 | head -n 1 | sed 's/^[[:space:]]*STATION_ID[[:space:]]*=[[:space:]]*//' | tr -d '"')
-fi
+CURL_EXEC="/usr/bin/curl"
+
+# --- Read station.conf ------------------------------------------------------
+conf_value() {
+    [ -f "${STATION_CONF}" ] || return 0
+    grep -E "^[[:space:]]*$1[[:space:]]*=" "${STATION_CONF}" \
+        | head -n 1 | sed "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//" | tr -d '"'
+}
+STATION_ID=$(conf_value STATION_ID)
 [ -z "${STATION_ID}" ] && STATION_ID=$(hostname | tr '[:lower:]' '[:upper:]')
+UPLOAD_KEY=$(conf_value UPLOAD_KEY)
+UPLOAD_URL=$(conf_value UPLOAD_URL)
+[ -z "${UPLOAD_URL}" ] && UPLOAD_URL="https://base.xeroth.ai"
 
 log() { echo "$(${DATE_EXEC} -u +"%Y-%m-%d %H:%M:%S UTC") [${STATION_ID}] $1" >> "${LOG_FILE}"; }
 
@@ -102,7 +118,7 @@ trap 'rm -f "${LOCK_FILE}"' EXIT
 rotate_log
 
 # --- Ensure GCS auth --------------------------------------------------------
-if [ -f "${GCS_KEY}" ]; then
+if [ -z "${UPLOAD_KEY}" ] && [ -f "${GCS_KEY}" ]; then
     ACTIVE=$(gcloud_cmd auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null)
     if [ -z "${ACTIVE}" ]; then
         log "Re-activating GCS service account"
@@ -140,6 +156,10 @@ fi
 #   1 — upload failed, local file retained
 #   2 — upload timed out (network issue), local file retained
 upload_and_verify() {
+    if [ -n "${UPLOAD_KEY}" ]; then
+        upload_to_network "$1"
+        return $?
+    fi
     local local_file="$1"
     local gcs_prefix="$2"
     local basename
@@ -172,6 +192,37 @@ upload_and_verify() {
 
     rm -f "${local_file}"
     return 0
+}
+
+# PUT one file to the network with the station's key. The server replies
+# 201 only after the file is stored, so that reply is the verification.
+# The key is passed on stdin to curl so it never appears in ps output.
+upload_to_network() {
+    local local_file="$1"
+    local basename http_code
+    basename=$(basename "${local_file}")
+    local url="${UPLOAD_URL}/v1/stations/${STATION_ID}/files/${basename}"
+    http_code=$(printf 'header = "Authorization: Bearer %s"\n' "${UPLOAD_KEY}" \
+        | ${TIMEOUT_EXEC} --kill-after=5 "${GCLOUD_TIMEOUT_S}" ${CURL_EXEC} -sS \
+            -o "${LOG_DIR}/.upload_reply" -w '%{http_code}' -K - \
+            -X PUT --data-binary "@${local_file}" \
+            -H "Content-Type: text/plain" "${url}" 2>"${LOG_DIR}/.upload_err")
+    local rc=$?
+    if [ ${rc} -eq 124 ] || [ ${rc} -eq 137 ]; then
+        log "TIMEOUT: upload exceeded ${GCLOUD_TIMEOUT_S}s for ${basename}"
+        return 2
+    fi
+    if [ "${http_code}" != "201" ]; then
+        log "ERROR: upload failed for ${basename} (curl rc=${rc}, HTTP ${http_code}): $(cat "${LOG_DIR}/.upload_reply" "${LOG_DIR}/.upload_err" 2>/dev/null | head -c 300)"
+        return 1
+    fi
+    rm -f "${local_file}"
+    return 0
+}
+
+# Where a file went, for the log.
+destination() {
+    if [ -n "${UPLOAD_KEY}" ]; then echo "${UPLOAD_URL} as ${STATION_ID}"; else echo "$1/"; fi
 }
 
 # Derive per-file GCS prefix from filename timestamp (so yesterday's
@@ -263,7 +314,7 @@ for ubx in "${RAW_DIR}"/*.ubx; do
     if [ -f "${rinex_obs}" ]; then
         upload_and_verify "${rinex_obs}" "${prefix}"; rc=$?
         if [ ${rc} -eq 0 ]; then
-            log "Uploaded $(basename "${rinex_obs}") to ${prefix}/"
+            log "Uploaded $(basename "${rinex_obs}") to $(destination "${prefix}")"
         else
             any_failed=1
         fi
@@ -272,7 +323,7 @@ for ubx in "${RAW_DIR}"/*.ubx; do
     if [ -f "${rinex_nav}" ]; then
         upload_and_verify "${rinex_nav}" "${prefix}"; rc=$?
         if [ ${rc} -eq 0 ]; then
-            log "Uploaded $(basename "${rinex_nav}") to ${prefix}/"
+            log "Uploaded $(basename "${rinex_nav}") to $(destination "${prefix}")"
         else
             any_failed=1
         fi
@@ -298,7 +349,7 @@ for rinex in "${LOG_DIR}"/*.obs "${LOG_DIR}"/*.nav "${LOG_DIR}"/*.rnx; do
     prefix=$(filename_to_gcs_prefix "${rinex}")
     upload_and_verify "${rinex}" "${prefix}"; rc=$?
     if [ ${rc} -eq 0 ]; then
-        log "Retry-uploaded $(basename "${rinex}") to ${prefix}/"
+        log "Retry-uploaded $(basename "${rinex}") to $(destination "${prefix}")"
     fi
 done
 

@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /admin
+Disallow: /dashboard
+Sitemap: https://base.xeroth.ai/sitemap.xml

@@ -7,6 +7,33 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.0] — 2026-10-27
+
+Added:
+
+- **Upload with a network key.** `UPLOAD_KEY=` in `station.conf` makes
+  the upload worker PUT each file to `base.xeroth.ai/v1` over HTTPS
+  instead of using gcloud. A 201 reply is the verification. The key is
+  handed to curl on stdin, never on its command line. A station with a
+  key needs no Google Cloud account, does not get the update agent
+  (whose release bucket only Xeroth's service accounts can read) and is
+  updated with `git pull` and `install.sh`. `install.sh` makes
+  `station.conf` readable by `xeroth` only.
+- `/health` reports `upload_mode` and does not require gcloud when the
+  station uploads with a key.
+- `tests/bats/network_upload.bats` runs the worker against a local HTTP
+  server: right key uploads and clears both files, wrong key keeps them.
+- `site/`, `worker/index.js`, `wrangler.jsonc`: the base.xeroth.ai site,
+  moved here from OpenXeroth/base-xeroth-ai and rewritten in the
+  open.xeroth.ai style, with the build guide.
+
+Changed:
+
+- CI and release run on GitHub-hosted runners. Both used the JHB runners
+  deleted on 2026-08-26, so neither could run.
+- The upload worker's base directory and lock file can be moved with
+  `GNSS_BASE_DIR` and `GNSS_LOCK_FILE`, for tests.
+
 ## [1.1.1] — 2026-05-27
 
 Patch release covering the cosmetic OTA-probe race observed during

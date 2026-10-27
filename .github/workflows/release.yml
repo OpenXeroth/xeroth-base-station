@@ -17,11 +17,9 @@ env:
 
 jobs:
   build-and-publish:
-    # Self-hosted runner on JHB. Has rsync, tar, sha256sum, gcloud
-    # pre-installed; google-github-actions/auth + setup-gcloud install
-    # their own gcloud SDK into the runner's tool cache regardless, so
-    # the system gcloud is not relied on by the auth step.
-    runs-on: [self-hosted, jhb]
+    # GitHub-hosted: free for a public repository, and GitHub keeps
+    # self-hosted runners away from public repositories' pull requests.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 

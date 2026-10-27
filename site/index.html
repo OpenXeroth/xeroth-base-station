@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GNSS base stations · OpenXeroth</title>
+<meta name="description" content="Open-source software that turns a Raspberry Pi and a u-blox ZED-F9P receiver into an unattended GNSS base station, and the Xeroth network that shares its recordings as RINEX.">
+<meta name="theme-color" content="#738878">
+<link rel="icon" href="/assets/xeroth-green.png">
+<link rel="canonical" href="https://base.xeroth.ai/">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/base.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="wrap"><div class="nav">
+  <a class="brand" href="https://open.xeroth.ai/" aria-label="OpenXeroth home"><img src="/assets/xeroth-green.png" alt="" width="40" height="40">Open<span>Xeroth</span></a>
+  <nav aria-label="Main navigation">
+    <a href="/build/">Build a station</a>
+    <a href="/#join">Join the network</a>
+    <a href="/#data">Get RINEX</a>
+    <a href="/dashboard">Sign in</a>
+    <a class="nav-github" href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+  </nav>
+</div></div></header>
+
+<main id="main" class="wrap">
+<section class="hero">
+  <div>
+    <p class="breadcrumbs"><a href="https://open.xeroth.ai/">OpenXeroth</a> / Base stations</p>
+    <div class="eyebrow">GNSS base stations</div>
+    <h1>Centimetre positioning, <em>from a Raspberry Pi.</em></h1>
+    <p class="lead">A satellite receiver on its own knows where it is to a few metres. A second receiver, fixed at a surveyed point and recording the same satellites at the same time, measures the error the atmosphere caused, and that measurement removes it from the first receiver's record afterwards. Metres become centimetres.</p>
+    <p>This is open-source software that makes a Raspberry Pi and a u-blox ZED-F9P receiver into that fixed receiver, running unattended. Any station can join the Xeroth network, which keeps every station's recordings and serves them as RINEX files to the people who need them.</p>
+    <div class="actions">
+      <a class="button" href="/build/">Build a station</a>
+      <a class="button secondary" href="/#data">Get RINEX data</a>
+    </div>
+  </div>
+  <figure class="sky" aria-label="Satellites, a base station at a known point, and a moving receiver nearby">
+    <svg viewBox="0 0 520 420" fill="none" stroke="#365f47" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <g><rect x="70" y="40" width="34" height="20" rx="3"/><path d="M58 50h12M104 50h12"/></g>
+      <g><rect x="244" y="18" width="34" height="20" rx="3"/><path d="M232 28h12M278 28h12"/></g>
+      <g><rect x="410" y="52" width="34" height="20" rx="3"/><path d="M398 62h12M444 62h12"/></g>
+      <path d="M87 62 150 300M261 40 150 300M427 74 150 300" stroke="#738878" stroke-dasharray="4 7" stroke-width="1.6"/>
+      <path d="M87 62 382 318M261 40 382 318M427 74 382 318" stroke="#b7c4b5" stroke-dasharray="4 7" stroke-width="1.6"/>
+      <path d="M150 300v58M126 300h48M134 300a16 10 0 0 1 32 0"/>
+      <rect x="114" y="358" width="72" height="34" rx="4"/>
+      <path d="M128 375h44"/>
+      <path d="M352 318h60l-8 22h-44z"/>
+      <circle cx="368" cy="346" r="7"/><circle cx="398" cy="346" r="7"/>
+      <path d="M382 318v-14M374 304h16"/>
+      <path d="M186 375c70 0 140-10 166-40" stroke="#738878" stroke-dasharray="2 6"/>
+      <text x="150" y="412" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="17" fill="#20382d" stroke="none">Base station, surveyed</text>
+      <text x="400" y="380" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="17" fill="#20382d" stroke="none">Your receiver</text>
+      <text x="260" y="140" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="15" fill="#637367" stroke="none">same satellites, same moment</text>
+    </svg>
+  </figure>
+</section>
+
+<section class="section intro-projects">
+  <div class="eyebrow">Three ways in</div>
+  <h2>Build one, share it, or use the data.</h2>
+  <div class="grid3">
+    <article class="card">
+      <span class="number">01 / Build</span>
+      <h3>Build a station</h3>
+      <p>A Raspberry Pi 5, a ZED-F9P receiver, a USB-serial cable and a dual-frequency antenna with a clear view of the sky. The software captures continuously, writes a RINEX file every ten minutes, restarts capture if it stalls and deletes its oldest raw files before the disk fills. Apache-2.0.</p>
+      <a class="link" href="/build/">The build guide ↗</a>
+    </article>
+    <article class="card" id="join">
+      <span class="number">02 / Join</span>
+      <h3>Add it to the network</h3>
+      <p>Sign in with Google and apply as a station operator. Once Xeroth approves you, your dashboard gives your station its identifier and an upload key. Two lines in the station's configuration and its files go to the network every ten minutes. Operators can read every station's data, not only their own.</p>
+      <a class="link" href="/apply/operator">Apply as an operator ↗</a>
+    </article>
+    <article class="card">
+      <span class="number">03 / Use</span>
+      <h3>Get RINEX data</h3>
+      <p>You do not need a station to use the network. Apply as a data user, say what you need it for, and once approved you get a key that lists the stations and downloads their files for any time in the last 90 days.</p>
+      <a class="link" href="/apply/consumer">Apply for data access ↗</a>
+    </article>
+  </div>
+</section>
+
+<section class="section">
+  <div class="eyebrow">What a station records</div>
+  <h2>One file every ten minutes.</h2>
+  <div class="table-wrap">
+    <table class="spec">
+      <tbody>
+        <tr><th scope="row">Files</th><td>RINEX 3.03: a <code>.obs</code> observation file and a <code>.nav</code> broadcast-orbit file for each ten-minute UTC slot, named by the slot's start, for example <code>202610271540.obs</code></td></tr>
+        <tr><th scope="row">Satellites</th><td>GPS, GLONASS, Galileo and BeiDou on two frequencies each, plus SBAS</td></tr>
+        <tr><th scope="row">Rate</th><td>One measurement a second</td></tr>
+        <tr><th scope="row">Position</th><td>The station's surveyed antenna position is written into every observation file's header</td></tr>
+        <tr><th scope="row">Kept</th><td>90 days on the network</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fine">How far a correction reaches depends on the distance between the station and your receiver: the ZED-F9P's specified accuracy is 1 cm plus 1 mm for every kilometre between them.</p>
+</section>
+
+<section class="section">
+  <div class="eyebrow">The network today</div>
+  <h2>One station, in the Greater Kruger.</h2>
+  <div class="prose">
+    <p>XER2 stands at Timbavati, South Africa (24.38° S, 31.16° E), and uploads a file every ten minutes. Every station that joins widens the area the network covers.</p>
+    <p class="fine">As of 27 October 2026. Approved users see the current list, with each station's position and last upload, at <code>/v1/stations</code>.</p>
+  </div>
+</section>
+
+<section class="section" id="data">
+  <div class="eyebrow">Get RINEX</div>
+  <h2>Apply, then download.</h2>
+  <div class="prose">
+    <ol>
+      <li><a href="/apply/consumer">Apply for data access</a>, or <a href="/apply/operator">as a station operator</a>. You sign in with your Google account and say what you need the data for.</li>
+      <li>Xeroth reviews each application by hand and emails you the decision.</li>
+      <li>Once approved, <a href="/dashboard">sign in to your dashboard</a>. Your key is shown there once: copy it then.</li>
+    </ol>
+    <p>Send the key as a Bearer token. List the stations:</p>
+<pre>curl -H "Authorization: Bearer xrx_..." https://base.xeroth.ai/v1/stations</pre>
+    <p>List the files covering your survey, in UTC, up to seven days at a time, then download each one by the <code>url</code> the list gives:</p>
+<pre>curl -H "Authorization: Bearer xrx_..." \
+  "https://base.xeroth.ai/v1/stations/XER2/files?start=2026-10-27T08:00:00Z&amp;end=2026-10-27T10:00:00Z"
+
+curl -H "Authorization: Bearer xrx_..." -OJ \
+  https://base.xeroth.ai/v1/stations/XER2/files/202610270800.obs</pre>
+    <div class="table-wrap">
+      <table class="spec">
+        <thead><tr><th>Request</th><th>Returns</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /v1/stations</code></td><td>Every station, its position and its last upload</td></tr>
+          <tr><td><code>GET /v1/stations/{id}</code></td><td>One station</td></tr>
+          <tr><td><code>GET /v1/stations/{id}/files?start=&amp;end=</code></td><td>The files covering a UTC window of up to seven days</td></tr>
+          <tr><td><code>GET /v1/stations/{id}/files/{name}</code></td><td>One file</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="fine">Each key may make 60 requests a minute. Keys can be revoked from the dashboard at any time.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="eyebrow">Code and licence</div>
+  <h2>Open software, run as a shared network.</h2>
+  <div class="prose">
+    <p>The station software and this site are open source under Apache-2.0, at <a href="https://github.com/OpenXeroth/xeroth-base-station">OpenXeroth/xeroth-base-station</a>. The network itself, which stores the files and checks keys, is run by Xeroth.</p>
+    <p>Questions: <a href="mailto:open@xeroth.ai">open@xeroth.ai</a>.</p>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap footer-row">
+  <div><span>OpenXeroth is part of <a href="https://xeroth.ai">Xeroth</a>.</span></div>
+  <div class="footer-links"><a href="https://open.xeroth.ai/">OpenXeroth ↗</a><a href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+</div></footer>
+</body>
+</html>

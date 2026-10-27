@@ -1,0 +1,10 @@
+// The base.xeroth.ai site. Deploy from a clean checkout of main:
+//   npx wrangler@4 deploy
+{
+  "name": "base-xeroth-ai",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-05-27",
+  "assets": { "directory": "./site", "binding": "ASSETS" },
+  "routes": [{ "pattern": "base.xeroth.ai", "custom_domain": true }],
+  "observability": { "enabled": true }
+}

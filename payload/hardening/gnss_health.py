@@ -210,6 +210,19 @@ def systemd_is_active(unit: str) -> bool | None:
     return out.stdout.strip() == "active"
 
 
+def uploads_with_network_key() -> bool:
+    """True if station.conf has UPLOAD_KEY=, in which case the station
+    uploads over HTTPS with that key and gcloud plays no part."""
+    try:
+        with open(STATION_CONF) as fh:
+            return any(
+                line.strip().startswith("UPLOAD_KEY=") and line.split("=", 1)[1].strip()
+                for line in fh
+            )
+    except OSError:
+        return False
+
+
 def gcs_auth_active() -> bool | None:
     """True if any ACTIVE gcloud account is present. Returns None if gcloud
     is not available, which should not happen on a provisioned station."""
@@ -488,7 +501,8 @@ def snapshot() -> dict:
     current_slot = current_slot_file_status(now)
     raw_bk = raw_backlog()
     rinex_bk = rinex_backlog_count()
-    auth_active = gcs_auth_active()
+    network_key = uploads_with_network_key()
+    auth_active = None if network_key else gcs_auth_active()
     free = disk_free()
     log_sig = upload_log_signals()
     release = release_state()
@@ -547,8 +561,10 @@ def snapshot() -> dict:
             f"(> {MAX_RINEX_BACKLOG})"
         )
 
-    # --- GCS auth ---
-    if auth_active is False:
+    # --- GCS auth (only when uploading with gcloud) ---
+    if network_key:
+        pass
+    elif auth_active is False:
         status = "degraded"
         reasons.append("no ACTIVE gcloud service account (uploads will fail)")
     elif auth_active is None:
@@ -588,6 +604,7 @@ def snapshot() -> dict:
         "current_slot": current_slot,
         "raw_backlog": raw_bk,
         "rinex_backlog_count": rinex_bk,
+        "upload_mode": "network-key" if network_key else "gcloud",
         "gcs_auth_active": auth_active,
         "upload_heartbeat": upload_hb,
         "last_upload": log_sig.get("last_upload"),

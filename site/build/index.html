@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Build a base station · OpenXeroth</title>
+<meta name="description" content="Parts and step-by-step instructions for building an unattended GNSS base station from a Raspberry Pi 5 and a u-blox ZED-F9P receiver.">
+<meta name="theme-color" content="#738878">
+<link rel="icon" href="/assets/xeroth-green.png">
+<link rel="canonical" href="https://base.xeroth.ai/build/">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/base.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><div class="wrap"><div class="nav">
+  <a class="brand" href="https://open.xeroth.ai/" aria-label="OpenXeroth home"><img src="/assets/xeroth-green.png" alt="" width="40" height="40">Open<span>Xeroth</span></a>
+  <nav aria-label="Main navigation">
+    <a href="/build/" aria-current="page">Build a station</a>
+    <a href="/#join">Join the network</a>
+    <a href="/#data">Get RINEX</a>
+    <a href="/dashboard">Sign in</a>
+    <a class="nav-github" href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+  </nav>
+</div></div></header>
+
+<main id="main" class="wrap">
+<section class="subhero">
+  <p class="breadcrumbs"><a href="https://open.xeroth.ai/">OpenXeroth</a> / <a href="/">Base stations</a> / Build</p>
+  <div class="eyebrow">Build guide</div>
+  <h1>Build a base station.</h1>
+  <p class="lead">This is how XER2, the network's station at Timbavati, is built. It takes an afternoon to assemble and install, and then a day of recording to survey the antenna's exact position.</p>
+</section>
+
+<section class="section">
+<div class="prose">
+<h2>Parts</h2>
+<div class="table-wrap">
+<table class="spec">
+  <thead><tr><th>Part</th><th>What XER2 uses</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Computer</td><td>Raspberry Pi 5</td><td>Any 64-bit Debian or Ubuntu machine works. XER2 runs from a 64 GB microSD card.</td></tr>
+    <tr><td>Receiver</td><td>u-blox ZED-F9P on an ArduSimple simpleRTK2B Lite board</td><td>Any ZED-F9P board with its UART1 pins brought out. Single-frequency receivers will not work.</td></tr>
+    <tr><td>Serial link</td><td>FTDI FT232R USB-serial cable, 3.3 V</td><td>Wired to the receiver's UART1: cable TX to receiver RX, cable RX to receiver TX, ground to ground. It must appear on the Pi as <code>/dev/ttyUSB0</code>.</td></tr>
+    <tr><td>Antenna</td><td>Survey-grade dual-frequency GNSS antenna</td><td>Fixed rigidly, with an unobstructed view of the whole sky. The station's accuracy is the antenna mount's accuracy: it must not move.</td></tr>
+    <tr><td>Power and network</td><td>Mains, wired internet</td><td>Capture carries on through network outages and uploads the backlog when the link returns.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>1. Prepare the Pi</h2>
+<p>Write Raspberry Pi OS Lite (64-bit) to the card with Raspberry Pi Imager. In Imager's settings, make the user <code>xeroth</code> and turn on SSH. The software installs into <code>/home/xeroth</code>, so the name matters. Then, on the Pi:</p>
+<pre>sudo apt-get update
+sudo apt-get install -y git build-essential python3 python3-serial curl</pre>
+
+<h2>2. Build RTKLIB</h2>
+<p>The station records with <code>str2str</code> and converts to RINEX with <code>convbin</code>, both from the rtklibexplorer branch of RTKLIB. Build them from source and put them in <code>/usr/local/bin</code>, where the station looks for them:</p>
+<pre>git clone https://github.com/rtklibexplorer/RTKLIB.git ~/RTKLIB
+make -C ~/RTKLIB/app/consapp/str2str/gcc
+make -C ~/RTKLIB/app/consapp/convbin/gcc
+sudo install -m 0755 ~/RTKLIB/app/consapp/str2str/gcc/str2str \
+                     ~/RTKLIB/app/consapp/convbin/gcc/convbin /usr/local/bin/</pre>
+
+<h2>3. Get the station software</h2>
+<pre>git clone https://github.com/OpenXeroth/xeroth-base-station.git ~/xeroth-base-station
+mkdir -p /home/xeroth/base_station/scripts
+cp ~/xeroth-base-station/station-configs.example/example.conf \
+   /home/xeroth/base_station/scripts/station.conf</pre>
+<p>Plug in the receiver. The first time the station starts it sets the receiver up itself: raw measurements once a second on UART1 at 115200 baud.</p>
+
+<h2>4. Survey the antenna</h2>
+<p>Corrections from a base station are only as good as the position it claims for its antenna, so that position has to be measured, once, to a centimetre or better. Record a full day from the receiver, convert it, and send it to a free processing service:</p>
+<pre>python3 /home/xeroth/xeroth-base-station/payload/scripts/ensure_receiver.py
+str2str -in serial://ttyUSB0:115200:8:n:1:off -out file:///home/xeroth/survey.ubx
+#   leave it running for at least 24 hours, then stop it with Ctrl-C
+convbin -v 3.03 -r ubx -f 2 survey.ubx</pre>
+<p>That writes <code>survey.obs</code> beside the recording (some RTKLIB builds name it <code>survey.rnx</code>). Upload it to <a href="https://gnss.ga.gov.au/auspos">AUSPOS</a> (Geoscience Australia, works worldwide) or to <a href="https://webapp.csrs-scrs.nrcan-rncan.gc.ca/geod/tools-outils/ppp.php">NRCan CSRS-PPP</a>. Both email back the antenna position. Put its Cartesian coordinates, X Y Z in metres, on the coordinate line of <code>station.conf</code>, replacing <code>0.0000 0.0000 0.0000</code>. XER2's line reads:</p>
+<pre>4974523.9720 3008024.3060 -2616592.1730</pre>
+<p>Until you have done this the station still records, but leaves the position out of its files.</p>
+
+<h2>5. Join the network</h2>
+<p><a href="/apply/operator">Apply as a station operator</a>. When you are approved, your dashboard shows your station's identifier and its upload key, once. Put both in <code>station.conf</code>:</p>
+<pre>STATION_ID=XER3
+UPLOAD_KEY=xrx_...</pre>
+<p>The key lets the station upload its own files and nothing else. The file is made readable by the <code>xeroth</code> user only when you install.</p>
+
+<h2>6. Install</h2>
+<pre>cd ~/xeroth-base-station
+sudo ./install.sh</pre>
+<p>The installer is safe to run again at any time. It starts capture, schedules the upload every minute, a watchdog that restarts capture if it stalls, and a disk guard that removes the oldest raw files when space runs low. To update, run <code>git pull</code> and the installer again.</p>
+
+<h2>7. Check it is working</h2>
+<pre>systemctl status gnss-capture.service
+tail -n 20 /home/xeroth/base_station/logs/automation.log</pre>
+<p>Within twenty minutes the log shows lines ending <code>to https://base.xeroth.ai as XER3</code>, one for each file, and your station appears with its position and last upload at <code>/v1/stations</code>.</p>
+<p class="fine">The station can also report its health as JSON on port 8080, but only over <a href="https://tailscale.com">Tailscale</a>: install and sign in to Tailscale and <code>gnss-health.service</code> starts with the rest. Without Tailscale that one service does not start; capture and upload are unaffected.</p>
+
+<h2>If something is wrong</h2>
+<ul>
+  <li><strong>Capture is not running.</strong> <code>journalctl -u gnss-capture.service -n 50</code>. Usually the cable is not at <code>/dev/ttyUSB0</code>, or the wires to UART1 are crossed the wrong way.</li>
+  <li><strong>Uploads fail with HTTP 401.</strong> The key in <code>station.conf</code> is wrong or revoked. Make a new station upload key on your dashboard.</li>
+  <li><strong>Uploads fail with HTTP 403.</strong> <code>STATION_ID</code> is not the station your key belongs to.</li>
+  <li><strong>Anything else.</strong> <a href="https://github.com/OpenXeroth/xeroth-base-station/issues">Open an issue</a> or email <a href="mailto:open@xeroth.ai">open@xeroth.ai</a> with the last 50 lines of <code>automation.log</code>.</li>
+</ul>
+</div>
+</section>
+</main>
+
+<footer><div class="wrap footer-row">
+  <div><span>OpenXeroth is part of <a href="https://xeroth.ai">Xeroth</a>.</span></div>
+  <div class="footer-links"><a href="https://open.xeroth.ai/">OpenXeroth ↗</a><a href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+</div></footer>
+</body>
+</html>

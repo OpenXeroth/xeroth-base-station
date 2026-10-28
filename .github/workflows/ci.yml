@@ -51,3 +51,6 @@ jobs:
       - name: bats test suite
         run: |
           bats -r tests/bats/
+
+      - name: Worker tests
+        run: node --test worker/index.test.mjs

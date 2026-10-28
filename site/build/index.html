@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Build a base station · OpenXeroth</title>
-<meta name="description" content="Parts and step-by-step instructions for building an unattended GNSS base station from a Raspberry Pi 5 and a u-blox ZED-F9P receiver.">
+<meta name="description" content="A plain-English guide, with a shopping list and prices, to building a GNSS base station from a Raspberry Pi 5 and a u-blox ZED-F9P receiver, and adding it to the Xeroth network.">
 <meta name="theme-color" content="#738878">
 <link rel="icon" href="/assets/xeroth-green.png">
 <link rel="canonical" href="https://base.xeroth.ai/build/">
@@ -15,12 +15,12 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap"><div class="nav">
   <a class="brand" href="https://open.xeroth.ai/" aria-label="OpenXeroth home"><img src="/assets/xeroth-green.png" alt="" width="40" height="40">Open<span>Xeroth</span></a>
-  <nav aria-label="Main navigation">
+  <nav id="site-nav" aria-label="Main navigation">
     <a href="/build/" aria-current="page">Build a station</a>
     <a href="/#join">Join the network</a>
     <a href="/#data">Get RINEX</a>
-    <a href="/auth/login?return_to=/dashboard">Sign in</a>
-    <a class="nav-github" href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+    <a href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+    <a class="nav-github" href="/auth/login?return_to=/dashboard">Sign in</a>
   </nav>
 </div></div></header>
 
@@ -29,78 +29,260 @@
   <p class="breadcrumbs"><a href="https://open.xeroth.ai/">OpenXeroth</a> / <a href="/">Base stations</a> / Build</p>
   <div class="eyebrow">Build guide</div>
   <h1>Build a base station.</h1>
-  <p class="lead">This is how XER2, the network's station at Timbavati, is built. It takes an afternoon to assemble and install, and then a day of recording to survey the antenna's exact position.</p>
+  <p class="lead">A shopping list, and every step from opening the boxes to a station sending its recordings to the network. You do not need to know how to program. You will copy and paste some commands, and this guide says exactly what each one does.</p>
 </section>
 
 <section class="section">
 <div class="prose">
-<h2>Parts</h2>
+
+<h2 id="contents">What this guide covers</h2>
+<ol>
+  <li><a href="#what">What you are building</a></li>
+  <li><a href="#before">Before you buy anything</a></li>
+  <li><a href="#parts">The shopping list, with prices</a></li>
+  <li><a href="#card">Prepare the memory card</a></li>
+  <li><a href="#assemble">Put it together</a></li>
+  <li><a href="#connect">Connect to the Pi from your computer</a></li>
+  <li><a href="#software">Install the software</a></li>
+  <li><a href="#receiver">Check the receiver is seen</a></li>
+  <li><a href="#survey">Measure the antenna's exact position</a></li>
+  <li><a href="#join">Join the network</a></li>
+  <li><a href="#install">Start the station</a></li>
+  <li><a href="#check">Check it is working</a></li>
+  <li><a href="#update">Keep it up to date</a></li>
+  <li><a href="#help">If something goes wrong</a></li>
+</ol>
+
+<h2 id="what">1. What you are building</h2>
+<p>A base station is a satellite-navigation receiver that never moves. Because it stays at a point whose position is known exactly, any error in what it measures must come from the satellites' signals passing through the atmosphere. Other receivers nearby suffer the same errors at the same moment, so the base station's recording lets them remove those errors afterwards.</p>
+<p>Yours has four parts:</p>
+<ul>
+  <li><strong>An antenna</strong>, fixed outdoors where it can see the whole sky. It picks up the satellites' signals.</li>
+  <li><strong>A receiver board</strong> (the simpleRTK2B Lite, which carries a u-blox ZED-F9P chip). It turns the antenna's signals into measurements.</li>
+  <li><strong>A Raspberry Pi 5</strong>, a small computer. It records the measurements, turns them into a standard file every ten minutes (called RINEX), and sends those files to the Xeroth network.</li>
+  <li><strong>The station software</strong> from this project, which runs on the Pi by itself, day and night, and restarts anything that stops.</li>
+</ul>
+
+<h2 id="before">2. Before you buy anything</h2>
+<p>Check that you have, or can get, each of these. The station will not work well without them.</p>
+<ul>
+  <li><strong>A place for the antenna with open sky.</strong> A roof, or the top of a pole, with nothing higher around it: no trees, walls or other buildings above the horizon if you can help it. Metal roofs and walls nearby reflect signals and spoil the measurements.</li>
+  <li><strong>A way to fix the antenna so that it cannot move, ever.</strong> The station's accuracy is the antenna mount's accuracy. If the antenna shifts by a centimetre, every recording after that is wrong by a centimetre. A bracket bolted to a wall, or a steel pole set in concrete, is right. A tripod or a magnet is not, except for testing.</li>
+  <li><strong>Mains power</strong> where the Pi will sit, which can be indoors. The antenna's cable is 2.5 metres long; longer extension cables are listed below.</li>
+  <li><strong>Internet at the site.</strong> A network cable from your router is best. Wi-Fi also works. If the internet goes down, the station keeps recording and sends the backlog when it comes back.</li>
+  <li><strong>A computer</strong> (Windows, Mac or Linux) for setting the Pi up. You need it only during setup.</li>
+  <li><strong>A Google account</strong>, which is how you sign in to this site to join the network.</li>
+</ul>
+
+<h2 id="parts">3. The shopping list, with prices</h2>
+<p>These are the parts our own station uses, from two shops: ArduSimple in Spain for the satellite parts, and The Pi Hut in the UK for the computer parts. Other shops sell the Raspberry Pi parts too: Raspberry Pi lists <a href="https://www.raspberrypi.com/resellers/">approved sellers in every country</a>.</p>
+
+<h3>The satellite parts, from ArduSimple (prices in euros)</h3>
 <div class="table-wrap">
 <table class="spec">
-  <thead><tr><th>Part</th><th>What XER2 uses</th><th>Notes</th></tr></thead>
+  <thead><tr><th>Part</th><th>What it is for</th><th>Price</th></tr></thead>
   <tbody>
-    <tr><td>Computer</td><td>Raspberry Pi 5</td><td>Any 64-bit Debian or Ubuntu machine works. XER2 runs from a 64 GB microSD card.</td></tr>
-    <tr><td>Receiver</td><td>u-blox ZED-F9P on an ArduSimple simpleRTK2B Lite board</td><td>Any ZED-F9P board with its UART1 pins brought out. Single-frequency receivers will not work.</td></tr>
-    <tr><td>Serial link</td><td>FTDI FT232R USB-serial cable, 3.3 V</td><td>Wired to the receiver's UART1: cable TX to receiver RX, cable RX to receiver TX, ground to ground. It must appear on the Pi as <code>/dev/ttyUSB0</code>.</td></tr>
-    <tr><td>Antenna</td><td>Survey-grade dual-frequency GNSS antenna</td><td>Fixed rigidly, with an unobstructed view of the whole sky. The station's accuracy is the antenna mount's accuracy: it must not move.</td></tr>
-    <tr><td>Power and network</td><td>Mains, wired internet</td><td>Capture carries on through network outages and uploads the backlog when the link returns.</td></tr>
+    <tr><td><a href="https://www.ardusimple.com/product/simplertk2blite/">simpleRTK2B Lite</a></td><td>The receiver. It comes with a small USB adapter board that it plugs into, and a USB cable, so it connects to the Pi with no soldering or wiring. It does <em>not</em> come with an antenna.</td><td>€199</td></tr>
+    <tr><td><a href="https://www.ardusimple.com/product/survey-gnss-multiband-antenna/">Budget Survey Multiband GNSS Antenna</a></td><td>The antenna. It has a 2.5&nbsp;m cable already attached, with the right plug (SMA) for the receiver. It screws onto a standard 5/8-inch surveying thread.</td><td>€89</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Optional, from the same shop:</p>
+<div class="table-wrap">
+<table class="spec">
+  <thead><tr><th>Part</th><th>When you need it</th><th>Price</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://www.ardusimple.com/product/antenna-cable-extender/">SMA antenna cable extender</a></td><td>If the Pi will be more than 2.5&nbsp;m from the antenna. Sold in lengths up to 20&nbsp;m; the price rises with length.</td><td>from €13 (5&nbsp;m: €25)</td></tr>
+    <tr><td><a href="https://www.ardusimple.com/product/plastic-case-for-lite-board/">Plastic Case for Lite board</a></td><td>A box for the receiver and its USB adapter, to keep dust and fingers off. Not waterproof: keep it indoors.</td><td>€39</td></tr>
+    <tr><td><a href="https://www.ardusimple.com/product/stand-survey-antenna/">Magnetic Stand for Survey GNSS Antenna</a></td><td>For trying the antenna out on a metal surface before you fix it permanently. Not for the permanent station.</td><td>€18</td></tr>
   </tbody>
 </table>
 </div>
 
-<h2>1. Prepare the Pi</h2>
-<p>Write Raspberry Pi OS Lite (64-bit) to the card with Raspberry Pi Imager. In Imager's settings, make the user <code>xeroth</code> and turn on SSH. The software installs into <code>/home/xeroth</code>, so the name matters. Then, on the Pi:</p>
-<pre>sudo apt-get update
-sudo apt-get install -y git build-essential python3 python3-serial curl</pre>
+<h3>The computer parts, from The Pi Hut (prices in pounds, including UK VAT)</h3>
+<div class="table-wrap">
+<table class="spec">
+  <thead><tr><th>Part</th><th>What it is for</th><th>Price</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://thepihut.com/products/raspberry-pi-5">Raspberry Pi 5, 4GB</a></td><td>The computer. The 4GB model is plenty; the larger ones cost more and give the station nothing extra.</td><td>£105.60</td></tr>
+    <tr><td><a href="https://thepihut.com/products/raspberry-pi-27w-usb-c-power-supply">Raspberry Pi 27W USB-C Power Supply</a></td><td>Power for the Pi and, through it, the receiver. Choose the plug for your country. Use this official one: weaker phone chargers cause faults that are hard to trace.</td><td>£11.50</td></tr>
+    <tr><td><a href="https://thepihut.com/products/raspberry-pi-5-case">Raspberry Pi 5 Case</a></td><td>The official case. It has a fan and heatsink built in, which keep the Pi cool when it runs all year.</td><td>£9.60</td></tr>
+    <tr><td><a href="https://thepihut.com/products/noobs-preinstalled-sd-card">Raspberry Pi microSD card, 64GB</a></td><td>The Pi's storage. You will write a fresh system onto it in step 4.</td><td>£30.60</td></tr>
+    <tr><td><a href="https://thepihut.com/products/mini-usb-2-0-microsd-card-reader">Mini USB microSD card reader</a></td><td>Only if your computer has no slot for a microSD card.</td><td>£2.50</td></tr>
+    <tr><td>Network cable</td><td>From your router to the Pi, if you are not using Wi-Fi. Any shop's ordinary Ethernet cable, long enough to reach.</td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The Pi Hut also sells a <a href="https://thepihut.com/products/raspberry-pi-5-starter-kit">Raspberry Pi 5 Starter Kit</a> that contains the Pi, the power supply, the case and the 64GB card together, plus a screen cable you will not need. With the 4GB Pi it costs £162.10, against £157.30 for the four parts bought separately.</p>
 
-<h2>2. Build RTKLIB</h2>
-<p>The station records with <code>str2str</code> and converts to RINEX with <code>convbin</code>, both from the rtklibexplorer branch of RTKLIB. Build them from source and put them in <code>/usr/local/bin</code>, where the station looks for them:</p>
+<h3>What it adds up to</h3>
+<div class="table-wrap">
+<table class="spec">
+  <tbody>
+    <tr><th scope="row">Satellite parts (receiver and antenna)</th><td>€288</td></tr>
+    <tr><th scope="row">Computer parts (Pi, power supply, case, card)</th><td>£157.30</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="notice">Prices were read from each shop's website on 28 October 2026. Prices change, so check them when you order. The Pi Hut's prices include UK VAT. Shipping, and any tax or import duty for your country, are shown at each shop's checkout: check the checkout total before you pay. Xeroth is not paid by either shop.</p>
+
+<h2 id="card">4. Prepare the memory card</h2>
+<p>The Pi has no hard disk. Everything it runs lives on the microSD card, and you start by putting a fresh copy of its operating system (Raspberry Pi OS) onto the card from your computer.</p>
+<ol>
+  <li>On your computer, download and install <a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a>, Raspberry Pi's free program for this.</li>
+  <li>Put the microSD card into your computer, using the card reader if you need one.</li>
+  <li>Open Raspberry Pi Imager. When it asks, choose:
+    <ul>
+      <li>Device: <strong>Raspberry Pi 5</strong>.</li>
+      <li>Operating system: <strong>Raspberry Pi OS (other)</strong>, then <strong>Raspberry Pi OS Lite (64-bit)</strong>. "Lite" means it has no desktop, which a station does not need.</li>
+      <li>Storage: your microSD card. Check it is the card, not another drive: everything on it will be erased.</li>
+    </ul>
+  </li>
+  <li>Imager then offers to customise the settings. Say yes, and set:
+    <ul>
+      <li>Hostname: <code>basestation</code>. This is the name you will use to reach the Pi from your computer.</li>
+      <li>Username: <code>xeroth</code>, exactly that, in lower case. The station software expects this name.</li>
+      <li>Password: one you will remember. Write it down.</li>
+      <li>Wi-Fi: only if you will not use a network cable. Enter your network's name and password.</li>
+      <li>Your time zone and keyboard layout.</li>
+      <li>SSH: turn it on, with password login. SSH is how your computer will talk to the Pi.</li>
+    </ul>
+  </li>
+  <li>Let Imager write and check the card. When it says it has finished, take the card out.</li>
+</ol>
+
+<h2 id="assemble">5. Put it together</h2>
+<ol>
+  <li><strong>The Pi.</strong> Follow the leaflet in the case's box. The case's fan has a small cable: plug it into the socket on the Pi marked FAN. Push the microSD card into the slot on the underside of the Pi, contacts facing the board, until it stops.</li>
+  <li><strong>The receiver.</strong> Plug the simpleRTK2B Lite into its USB adapter board, the way ArduSimple's photos on the <a href="https://www.ardusimple.com/product/simplertk2blite/">product page</a> show it. Then connect the adapter to one of the Pi's USB sockets with the USB cable that came with the receiver.</li>
+  <li><strong>The antenna.</strong> Screw the antenna onto its permanent mount, outdoors. Run its cable to the receiver and screw its plug onto the receiver's antenna socket, the small threaded metal one, finger-tight only. If you seal the cable where it passes through a wall or window, leave it a little slack.</li>
+  <li><strong>Network.</strong> Plug the network cable into the Pi and into your router, unless you set up Wi-Fi.</li>
+  <li><strong>Power.</strong> Plug in the power supply last. A red light comes on, then a green light flickers while the Pi starts. The first start takes longer than later ones, because the Pi finishes setting itself up.</li>
+</ol>
+
+<h2 id="connect">6. Connect to the Pi from your computer</h2>
+<p>From here on you will type, or paste, commands into a window on your computer, and they will run on the Pi. That window is called a terminal.</p>
+<ol>
+  <li>Open a terminal on your computer:
+    <ul>
+      <li>Windows: open the Start menu, type <strong>PowerShell</strong>, and open it.</li>
+      <li>Mac: open <strong>Terminal</strong>, from Applications, then Utilities.</li>
+      <li>Linux: open your terminal program.</li>
+    </ul>
+  </li>
+  <li>Type this and press Enter:
+<pre>ssh xeroth@basestation.local</pre>
+  </li>
+  <li>The first time, it asks whether you trust this computer. Type <code>yes</code> and press Enter.</li>
+  <li>Type the password you chose in step 4 and press Enter. Nothing appears on the screen while you type the password; that is normal.</li>
+</ol>
+<p>When it works, the line you type on starts with <code>xeroth@basestation</code>. Everything you type now runs on the Pi.</p>
+<p class="notice">If it says it cannot find <code>basestation.local</code>, wait a few minutes and try again: the Pi may still be starting. If it still fails, open your router's settings page, find the device called <code>basestation</code> in its list of connected devices, and use the address it shows instead, for example <code>ssh xeroth@192.168.1.42</code>.</p>
+<p><strong>Copying and pasting commands.</strong> Each grey box below is one or more commands. Copy the whole box, paste it into the terminal and press Enter. To paste: in PowerShell, right-click; on a Mac, Cmd+V; in most Linux terminals, Ctrl+Shift+V. Wait for each box to finish, which is when the <code>xeroth@basestation</code> line appears again, before pasting the next.</p>
+
+<h2 id="software">7. Install the software</h2>
+<p>First, bring the Pi's system up to date and install the tools the station needs. The <code>sudo</code> at the start lets a command change the system; it may ask for your password again.</p>
+<pre>sudo apt-get update
+sudo apt-get full-upgrade -y
+sudo apt-get install -y git build-essential python3 python3-serial curl</pre>
+<p>Next, build RTKLIB, the open-source program that reads the receiver and writes the RINEX files. This turns its source code into programs the Pi can run, and puts them where the station looks for them. It prints a lot of text while it works; that is normal.</p>
 <pre>git clone https://github.com/rtklibexplorer/RTKLIB.git ~/RTKLIB
 make -C ~/RTKLIB/app/consapp/str2str/gcc
 make -C ~/RTKLIB/app/consapp/convbin/gcc
 sudo install -m 0755 ~/RTKLIB/app/consapp/str2str/gcc/str2str \
                      ~/RTKLIB/app/consapp/convbin/gcc/convbin /usr/local/bin/</pre>
-
-<h2>3. Get the station software</h2>
+<p>Then download the station software and make its settings file:</p>
 <pre>git clone https://github.com/OpenXeroth/xeroth-base-station.git ~/xeroth-base-station
 mkdir -p /home/xeroth/base_station/scripts
 cp ~/xeroth-base-station/station-configs.example/example.conf \
    /home/xeroth/base_station/scripts/station.conf</pre>
-<p>Plug in the receiver. The first time the station starts it sets the receiver up itself: raw measurements once a second on UART1 at 115200 baud.</p>
 
-<h2>4. Survey the antenna</h2>
-<p>Corrections from a base station are only as good as the position it claims for its antenna, so that position has to be measured, once, to a centimetre or better. Record a full day from the receiver, convert it, and send it to a free processing service:</p>
-<pre>python3 /home/xeroth/xeroth-base-station/payload/scripts/ensure_receiver.py
-str2str -in serial://ttyUSB0:115200:8:n:1:off -out file:///home/xeroth/survey.ubx
-#   leave it running for at least 24 hours, then stop it with Ctrl-C
-convbin -v 3.03 -r ubx -f 2 survey.ubx</pre>
-<p>That writes <code>survey.obs</code> beside the recording (some RTKLIB builds name it <code>survey.rnx</code>). Upload it to <a href="https://gnss.ga.gov.au/auspos">AUSPOS</a> (Geoscience Australia, works worldwide) or to <a href="https://webapp.csrs-scrs.nrcan-rncan.gc.ca/geod/tools-outils/ppp.php">NRCan CSRS-PPP</a>. Both email back the antenna position. Put its Cartesian coordinates, X Y Z in metres, on the coordinate line of <code>station.conf</code>, replacing <code>0.0000 0.0000 0.0000</code>. XER2's line reads:</p>
+<h2 id="receiver">8. Check the receiver is seen</h2>
+<p>Ask the Pi to list its serial devices, which is how the receiver appears to it:</p>
+<pre>ls /dev/ttyUSB*</pre>
+<p>It should print <code>/dev/ttyUSB0</code>. If it does, the Pi can see the receiver. Now let the station software set the receiver up the way it needs, which it only has to do once:</p>
+<pre>python3 ~/xeroth-base-station/payload/scripts/ensure_receiver.py</pre>
+<p>It prints <code>115200</code> when the receiver is ready. If it prints <code>FAILED</code>, see <a href="#help">If something goes wrong</a>.</p>
+<p class="notice">The software expects the receiver at <code>/dev/ttyUSB0</code>. XER2, the network's first station, was built with a separate USB-serial cable wired to the receiver; the USB adapter that now comes with the simpleRTK2B Lite connects to the same port on the receiver. If <code>ls /dev/ttyUSB*</code> prints nothing, unplug the receiver's USB cable, plug it back in, and try again. If it still prints nothing, run <code>ls /dev/ttyACM*</code>, then <a href="https://github.com/OpenXeroth/xeroth-base-station/issues">open an issue</a> or email <a href="mailto:open@xeroth.ai">open@xeroth.ai</a> with what both commands printed, and we will help.</p>
+
+<h2 id="survey">9. Measure the antenna's exact position</h2>
+<p>A base station's recordings are only useful if the station knows exactly where its antenna is, to a centimetre or better. You measure that once, by recording for a full day and sending the recording to a free government service that works out the position.</p>
+<p><strong>Start recording.</strong> This command records in the background, so it carries on if you close the terminal or your computer:</p>
+<pre>nohup str2str -in serial://ttyUSB0:115200:8:n:1:off -out file:///home/xeroth/survey.ubx > /dev/null 2>&amp;1 &amp;</pre>
+<p>To check that it is recording, run this now and again a minute later. The size of <code>survey.ubx</code> should grow each time:</p>
+<pre>ls -lh ~/survey.ubx</pre>
+<p><strong>Leave it recording for at least 24 hours.</strong> Do not touch the antenna meanwhile. You can apply to join the network (<a href="#join">step 10</a>) while you wait.</p>
+<p><strong>Stop recording and convert the file.</strong> After 24 hours, connect to the Pi again (<a href="#connect">step 6</a>) and run:</p>
+<pre>pkill str2str
+cd ~
+convbin -v 3.03 -r ubx -f 2 -ti 30 survey.ubx
+ls survey.*</pre>
+<p>The last line lists the files. Next to <code>survey.ubx</code> there is now a file called <code>survey.obs</code> (some versions of RTKLIB call it <code>survey.rnx</code>). That is the day's recording in the standard RINEX format, one measurement every 30 seconds, which is what the processing services use.</p>
+<p><strong>Copy it to your computer.</strong> Open a <em>second</em> terminal on your computer, without connecting to the Pi, and run this. It copies the file into the folder the terminal is in, usually your home folder:</p>
+<pre>scp xeroth@basestation.local:survey.obs .</pre>
+<p><strong>Send it to a processing service.</strong> Either of these is free and works anywhere in the world:</p>
+<ul>
+  <li><a href="https://gnss.ga.gov.au/auspos">AUSPOS</a>, from Geoscience Australia.</li>
+  <li><a href="https://webapp.csrs-scrs.nrcan-rncan.gc.ca/geod/tools-outils/ppp.php">CSRS-PPP</a>, from Natural Resources Canada (it asks you to create a free account).</li>
+</ul>
+<p>Upload <code>survey.obs</code> and give your email address. Where the form asks for the antenna height, enter <code>0</code>: the station needs the position of the antenna itself, not of the ground beneath it. The service emails you a report.</p>
+<p><strong>Put the position into the station's settings.</strong> In the report, find the antenna's <em>Cartesian</em> coordinates: three numbers labelled X, Y and Z, in metres, each with millions of metres. (Not latitude and longitude.) Open the settings file on the Pi:</p>
+<pre>nano /home/xeroth/base_station/scripts/station.conf</pre>
+<p>This opens a simple text editor. Use the arrow keys to move to the line that reads <code>0.0000 0.0000 0.0000</code> and replace it with your three numbers, in the order X Y Z, separated by spaces. XER2's line, for example, reads:</p>
 <pre>4974523.9720 3008024.3060 -2616592.1730</pre>
-<p>Until you have done this the station still records, but leaves the position out of its files.</p>
+<p>To save, press Ctrl+O and then Enter. To leave the editor, press Ctrl+X.</p>
+<p class="notice">If you cannot do this step yet, you can still carry on. The station records without it, but leaves the position out of its files, and people using your data will get less accurate results until you add it. If you ever move the antenna, measure it again.</p>
 
-<h2>5. Join the network</h2>
-<p><a href="/apply/operator">Apply as a station operator</a>. When you are approved, your dashboard shows your station's identifier and its upload key, once. Put both in <code>station.conf</code>:</p>
+<h2 id="join">10. Join the network</h2>
+<ol>
+  <li><a href="/apply/operator">Apply as a station operator</a>. You sign in with your Google account and tell us where the station is and what you will use it for.</li>
+  <li>Xeroth reviews every application by hand and emails you the decision.</li>
+  <li>Once you are approved, <a href="/auth/login?return_to=/dashboard">sign in to your dashboard</a>. It shows your station's identifier, such as <code>XER3</code>, and its <strong>upload key</strong>, a long code starting <code>xrx_</code>. The key is shown <strong>once only</strong>: copy it straight away. If you lose it, you can make a new one on the dashboard.</li>
+  <li>Put both into the settings file. Open it as before:
+<pre>nano /home/xeroth/base_station/scripts/station.conf</pre>
+    Change the line <code>STATION_ID=MY_STATION</code> to your identifier, and change the line <code># UPLOAD_KEY=xrx_...</code> to your key, removing the <code>#</code> at the start. With your own identifier and key, the two lines look like this:
 <pre>STATION_ID=XER3
-UPLOAD_KEY=xrx_...</pre>
-<p>The key lets the station upload its own files and nothing else. The file is made readable by the <code>xeroth</code> user only when you install.</p>
+UPLOAD_KEY=xrx_0123456789abcdef01234567_YourSecretPart</pre>
+    Save with Ctrl+O and Enter, and leave with Ctrl+X.</li>
+</ol>
+<p>The key lets the station upload its own files and nothing else. Keep it private: anyone who has it could upload files as your station.</p>
 
-<h2>6. Install</h2>
+<h2 id="install">11. Start the station</h2>
+<p>Run the installer. It sets everything up to run by itself, now and every time the Pi is switched on:</p>
 <pre>cd ~/xeroth-base-station
 sudo ./install.sh</pre>
-<p>The installer is safe to run again at any time. It starts capture, schedules the upload every minute, a watchdog that restarts capture if it stalls, and a disk guard that removes the oldest raw files when space runs low. To update, run <code>git pull</code> and the installer again.</p>
-
-<h2>7. Check it is working</h2>
-<pre>systemctl status gnss-capture.service
-tail -n 20 /home/xeroth/base_station/logs/automation.log</pre>
-<p>Within twenty minutes the log shows lines ending <code>to https://base.xeroth.ai as XER3</code>, one for each file, and your station appears with its position and last upload at <code>/v1/stations</code>.</p>
-<p class="fine">The station can also report its health as JSON on port 8080, but only over <a href="https://tailscale.com">Tailscale</a>: install and sign in to Tailscale and <code>gnss-health.service</code> starts with the rest. Without Tailscale that one service does not start; capture and upload are unaffected.</p>
-
-<h2>If something is wrong</h2>
+<p>It prints ten numbered steps and finishes with <code>Install complete</code> and your station's identifier. If it stops with a line starting <code>ERROR</code>, the line says what is wrong; most often the settings file has no <code>STATION_ID=</code> line.</p>
+<p>From now on the station:</p>
 <ul>
-  <li><strong>Capture is not running.</strong> <code>journalctl -u gnss-capture.service -n 50</code>. Usually the cable is not at <code>/dev/ttyUSB0</code>, or the wires to UART1 are crossed the wrong way.</li>
-  <li><strong>Uploads fail with HTTP 401.</strong> The key in <code>station.conf</code> is wrong or revoked. Make a new station upload key on your dashboard.</li>
-  <li><strong>Uploads fail with HTTP 403.</strong> <code>STATION_ID</code> is not the station your key belongs to.</li>
-  <li><strong>Anything else.</strong> <a href="https://github.com/OpenXeroth/xeroth-base-station/issues">Open an issue</a> or email <a href="mailto:open@xeroth.ai">open@xeroth.ai</a> with the last 50 lines of <code>automation.log</code>.</li>
+  <li>records the receiver continuously, and writes a RINEX file for every ten minutes of the day;</li>
+  <li>uploads each file to the network as soon as it is written, and catches up on any it missed while the internet was down;</li>
+  <li>restarts recording by itself if it ever stops;</li>
+  <li>deletes its oldest raw recordings before the card fills up.</li>
+</ul>
+<p>It is safe to run the installer again at any time.</p>
+
+<h2 id="check">12. Check it is working</h2>
+<p>Wait about twenty minutes after installing, then connect to the Pi and run:</p>
+<pre>tail -n 20 /home/xeroth/base_station/logs/automation.log</pre>
+<p>This shows the station's twenty most recent log lines. When all is well, there are lines ending <code>to https://base.xeroth.ai as XER3</code> (with your identifier), one for each file it has sent. Your dashboard on this site also shows your station as live, with the time of its last upload.</p>
+<p>You can now unplug the screen and keyboard if you used any, close the terminal, and leave the station alone. It needs nothing from you day to day.</p>
+<p class="fine">The station can also report its health over <a href="https://tailscale.com">Tailscale</a>, a private network service, if you install it on the Pi; without Tailscale, that one report does not run, and recording and uploading are unaffected.</p>
+
+<h2 id="update">13. Keep it up to date</h2>
+<p>Every few months, connect to the Pi and run these. The first two lines update the Pi's system; the last two fetch the newest station software and reinstall it, keeping your settings:</p>
+<pre>sudo apt-get update
+sudo apt-get full-upgrade -y
+cd ~/xeroth-base-station &amp;&amp; git pull
+sudo ./install.sh</pre>
+<p>Each new version is listed by its number on the project's <a href="https://github.com/OpenXeroth/xeroth-base-station/tags">GitHub page</a>.</p>
+
+<h2 id="help">14. If something goes wrong</h2>
+<ul>
+  <li><strong>The Pi will not start (no green light).</strong> Check the power supply is the 27W one and is switched on at the wall, and that the card is pushed fully into its slot.</li>
+  <li><strong>The receiver prints <code>FAILED</code>, or the log says the receiver is not found.</strong> Check the receiver is pushed fully onto its USB adapter, the USB cable is in, and <code>ls /dev/ttyUSB*</code> prints <code>/dev/ttyUSB0</code> (<a href="#receiver">step 8</a>). Unplug and replug the USB cable, then run <code>sudo systemctl restart gnss-capture.service</code>.</li>
+  <li><strong>The log says uploads fail with HTTP 401.</strong> The upload key in the settings file is wrong, or it has been revoked. Make a new station upload key on your dashboard, put it in the settings file (<a href="#join">step 10</a>), and run the installer again.</li>
+  <li><strong>The log says uploads fail with HTTP 403.</strong> The <code>STATION_ID</code> in the settings file is not the station your key belongs to. Copy the identifier exactly as your dashboard shows it.</li>
+  <li><strong>Anything else.</strong> Run <code>tail -n 50 /home/xeroth/base_station/logs/automation.log</code>, copy what it prints, and <a href="https://github.com/OpenXeroth/xeroth-base-station/issues">open an issue</a> or email <a href="mailto:open@xeroth.ai">open@xeroth.ai</a> with it. Never include your upload key.</li>
 </ul>
 </div>
 </section>

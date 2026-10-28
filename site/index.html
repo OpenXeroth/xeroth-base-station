@@ -15,12 +15,12 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap"><div class="nav">
   <a class="brand" href="https://open.xeroth.ai/" aria-label="OpenXeroth home"><img src="/assets/xeroth-green.png" alt="" width="40" height="40">Open<span>Xeroth</span></a>
-  <nav aria-label="Main navigation">
+  <nav id="site-nav" aria-label="Main navigation">
     <a href="/build/">Build a station</a>
     <a href="/#join">Join the network</a>
     <a href="/#data">Get RINEX</a>
-    <a href="/auth/login?return_to=/dashboard">Sign in</a>
-    <a class="nav-github" href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+    <a href="https://github.com/OpenXeroth/xeroth-base-station">GitHub ↗</a>
+    <a class="nav-github" href="/auth/login?return_to=/dashboard">Sign in</a>
   </nav>
 </div></div></header>
 
@@ -65,7 +65,7 @@
     <article class="card">
       <span class="number">01 / Build</span>
       <h3>Build a station</h3>
-      <p>A Raspberry Pi 5, a ZED-F9P receiver, a USB-serial cable and a dual-frequency antenna with a clear view of the sky. The software captures continuously, writes a RINEX file every ten minutes, restarts capture if it stalls and deletes its oldest raw files before the disk fills. Apache-2.0.</p>
+      <p>A Raspberry Pi 5, a ZED-F9P receiver board and a dual-frequency antenna with a clear view of the sky: about €288 and £157 of parts, listed with links in the guide, which is written for people who have never used a Raspberry Pi. The software captures continuously, writes a RINEX file every ten minutes, restarts capture if it stalls and deletes its oldest raw files before the disk fills. Apache-2.0.</p>
       <a class="link" href="/build/">The build guide ↗</a>
     </article>
     <article class="card" id="join">

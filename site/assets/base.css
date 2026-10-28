@@ -13,3 +13,6 @@ code{font:0.9em ui-monospace,SFMono-Regular,Menlo,monospace}
 .sky{background:var(--pale);border-radius:12px;padding:30px;border:1px solid #d1d9c9}
 .sky svg{width:100%;height:auto;display:block}
 @media(max-width:800px){.spec th,.spec td{padding:10px}pre{font-size:12px}}
+.nav-form{display:inline;margin:0}
+.nav-form button{background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.prose code{overflow-wrap:anywhere}

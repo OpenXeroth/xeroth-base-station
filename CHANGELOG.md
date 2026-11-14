@@ -7,6 +7,20 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.3] — 2026-11-14
+
+Fixed:
+
+- `gnss-health.service` would not start on a station that uploads with a
+  network key. Its sandbox re-granted write access to
+  `/home/xeroth/.config/gcloud`, a folder that exists only where gcloud
+  has run; systemd stopped the service with `status=226/NAMESPACE`
+  ("Failed to set up mount namespacing: /home/xeroth/.config/gcloud: No
+  such file or directory"), so `/health` never answered. The path is now
+  optional (`-/home/xeroth/.config/gcloud`). Found bringing up XER1 at
+  Djuma (Raspberry Pi 2, network key); confirmed there, where `/health`
+  then returned `status: ok`. Stations with gcloud are unaffected.
+
 ## [1.2.2] — 2026-10-27
 
 Fixed:

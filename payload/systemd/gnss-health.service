@@ -21,8 +21,11 @@ ReadOnlyPaths=/home/xeroth/base_station
 # gcloud writes to ~/.config/gcloud/ (logs + credentials.db-journal) even for
 # read-only operations like `auth list`. ProtectHome=read-only blocks this;
 # ReadWritePaths re-grants write on that subtree specifically, so the
-# gcs_auth_active() probe in gnss_health.py succeeds.
-ReadWritePaths=/var/run /home/xeroth/.config/gcloud
+# gcs_auth_active() probe in gnss_health.py succeeds. The leading "-" makes
+# the path optional: a station uploading with a network key has no gcloud
+# and no ~/.config/gcloud, and without the "-" systemd refuses to start
+# the service (status=226/NAMESPACE).
+ReadWritePaths=/var/run -/home/xeroth/.config/gcloud
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes

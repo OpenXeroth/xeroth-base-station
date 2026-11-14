@@ -2,8 +2,12 @@
 Description=snareSAR GNSS Base Station — continuous UBX capture (zero-gap)
 After=network-online.target dev-ttyUSB0.device
 Wants=dev-ttyUSB0.device
-StartLimitIntervalSec=600
-StartLimitBurst=10
+# Never stop retrying. With a start limit (10 starts in 600 s), a service
+# that fails at boot -- here because Tailscale has no address yet, or the
+# receiver is not yet on USB -- gives up for good after 10 tries and an
+# unattended station stays broken until someone logs in. XER2's health
+# service was down from 10 to 14 November 2026 this way.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple

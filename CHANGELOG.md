@@ -7,6 +7,18 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.4] — 2026-11-14
+
+Fixed:
+
+- `gnss-health.service` and `gnss-capture.service` gave up for good after
+  10 failed starts in 10 minutes. When XER2 restarted on 10 November, its
+  Wi-Fi came up after Tailscale had started; the health service found no
+  Tailscale address, failed 10 times and stopped, and `/health` stayed
+  down until 14 November. The capture service had the same limit (its
+  watchdog only recovered it once the 10-minute window had passed). Both
+  now retry without limit (`StartLimitIntervalSec=0`), every 10 s and 5 s.
+
 ## [1.2.3] — 2026-11-14
 
 Fixed:

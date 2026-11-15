@@ -39,9 +39,8 @@ v4 behaviour:
   3. After VALSET, verify by reading UBX at TARGET_BAUD (the receiver
      will have switched baud if the BAUDRATE write took).
 
-Called by log_and_upload.sh when a capture produces no UBX data, and
-by gnss-receiver.service at boot. Safe to run while str2str is not
-holding /dev/ttyUSB0.
+Run by gnss-capture.service (ExecStartPre) before every start of
+capture. Safe to run while str2str is not holding /dev/ttyUSB0.
 """
 import serial
 import struct

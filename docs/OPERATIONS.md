@@ -25,8 +25,12 @@ It walks `logs/raw/`, ignores any file whose mtime is newer than 60 s
 2. The `APPROX POSITION XYZ` line in `.obs` is replaced with the
    AUSPOS-surveyed ITRF2020 coordinate from `station.conf`.
 3. Both files upload to
-   `gs://xeroth-base-stations-data/<STATION>/YYYY/DOY/YYYYMMDDHHMM.{obs,nav}` via
-   `gcloud storage cp`, each verified with `gcloud storage ls`.
+   `gs://xeroth-base-stations-data/<STATION>/YYYY/DOY/YYYYMMDDHHMM.{obs,nav}`.
+   A station with `UPLOAD_KEY=` in `station.conf` PUTs each file to
+   `https://base.xeroth.ai/v1/stations/<STATION>/files/<name>`; the 201
+   reply is the verification. A station without one uses
+   `gcloud storage cp` with its service account, verified with
+   `gcloud storage ls`.
 4. On verified success, the raw `.ubx`, its RTKLIB `.ubx.tag` sidecar,
    and the local `.obs`/`.nav` are deleted. On failure the raw `.ubx`
    stays and the next worker run retries.
@@ -35,13 +39,13 @@ The worker writes `/home/xeroth/base_station/state/upload.heartbeat` on
 every invocation, so the health endpoint can observe that the worker
 is running even during minutes when there is no closed slot to process.
 
-Three systemd units and two cron entries define the station's
-steady state:
+Two systemd units and three cron entries (four on a station with a
+service account, which also runs the update agent) define the
+station's steady state:
 
 | Unit / job                   | Role                                                        |
 |------------------------------|-------------------------------------------------------------|
-| `gnss-receiver.service`      | Oneshot. `ExecStart=ensure_receiver.py` re-applies UBX CFG-VALSET at boot (and on capture restart via `ExecStartPre`). |
-| `gnss-capture.service`       | Long-running `str2str` — continuous UBX capture with 10-min rotation. |
+| `gnss-capture.service`       | Long-running `str2str` — continuous UBX capture with 10-min rotation. `ExecStartPre` runs `ensure_receiver.py`, which re-applies the receiver configuration if it has been lost. |
 | `gnss-health.service`        | Tailscale-only HTTP `/health` endpoint on port 8080.        |
 | cron: `gnss_upload_worker.sh`| Every minute. Converts + uploads closed UBX rotations.      |
 | cron: `gnss-watchdog.sh`     | Every minute. Restarts capture if the current raw file mtime goes stale. |
@@ -200,7 +204,6 @@ tail -F /home/xeroth/base_station/logs/automation.log        # upload worker
 tail -F /home/xeroth/base_station/logs/watchdog.log          # watchdog
 sudo journalctl -u gnss-capture.service -f                   # str2str stream
 sudo journalctl -u gnss-health.service -f                    # health endpoint
-sudo journalctl -u gnss-receiver.service -f                  # boot-time recv cfg
 ls -la /home/xeroth/base_station/logs/raw/                   # current slot + any backlog
 ```
 
@@ -233,24 +236,14 @@ ls -la /home/xeroth/base_station/logs/raw/                   # current slot + an
 | `gcs_auth_active is false`                                                | `sudo -u xeroth gcloud auth list`. Re-activate via `gcloud auth activate-service-account --key-file ~/base_station/gnss-uploader-key.json`. |
 | `disk free < 2048 MB`                                                     | `df -h /home/xeroth`. `gnss-disk-guard.sh` should prune — check `/var/log/xeroth-disk-guard.log`.             |
 | `convbin` runs but only produces L1 RINEX                                 | Confirm `gnss_upload_worker.sh` has `-f 2` (dual) not `-f 1`. Re-run install.                                 |
-| RINEX contains only a few SVs                                             | Antenna / sky view. Check `receiver_probe_v3.py` C/N₀ distribution.                                           |
+| RINEX contains only a few SVs                                             | Antenna / sky view. Count the signals tracked per system with `tools/rawx_sigids.py` on a raw `.ubx`.          |
 | `ensure_receiver.py` prints `FAILED`                                      | Cable / power / receiver lockup. Stop `gnss-capture.service`, power-cycle the F9P, start capture again.       |
 | Cron jobs not firing                                                      | `sudo -u xeroth crontab -l` — if empty, re-run `install.sh --station XER?` to reinstate canonical crontab.    |
 
 ## Rebuilding a station from scratch
 
-1. Flash Debian 13. Set hostname `MY_STATION` (or `MY_STATION`).
-2. Create `xeroth` user, add NOPASSWD sudo.
-3. Install Tailscale, join snareSAR tailnet, note the 100.x IP.
-4. Copy `base_station/` to the station:
-   `scp -r base_station/ xeroth@<ip>:/tmp/`.
-5. Copy the correct `station-configs/xerN.conf` into
-   `/home/xeroth/base_station/scripts/station.conf` (contains
-   `STATION_ID=` and the AUSPOS XYZ coordinate).
-6. `sudo /tmp/base_station/install.sh --station MY_STATION`.
-7. Verify within two minutes:
-   - `systemctl is-active gnss-receiver.service gnss-capture.service gnss-health.service` returns `active` for all three.
-   - `ls /home/xeroth/base_station/logs/raw/` shows the currently-writing slot `.ubx`.
-   - `curl http://<ip>:8080/health` returns `status: ok`.
-   - `gcloud storage ls gs://xeroth-base-stations-data/MY_STATION/$(date -u +%Y/%j)/` shows fresh `.obs` and `.nav` files after the first rotation boundary has passed.
-   - Download one `.obs`, confirm the four-code SYS / # / OBS TYPES lines (dual-frequency).
+Follow [`runbooks/DEPLOY.md`](runbooks/DEPLOY.md) from the start, then
+copy the station's previous `station.conf` (its `STATION_ID`, upload key
+if it uses one, and surveyed position) into
+`/home/xeroth/base_station/scripts/station.conf` before running
+`install.sh`.

@@ -48,7 +48,7 @@ bats -r tests/bats/
 ```
 
 All four must pass before a PR is reviewable. CI runs the same set
-on a JHB-hosted runner.
+on GitHub-hosted runners.
 
 ## What we will and won't merge
 

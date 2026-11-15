@@ -12,12 +12,6 @@
 #   - cron: gnss-watchdog.sh         every 1 min (restarts capture on stall)
 #   - cron: gnss-disk-guard.sh       every 5 min (ring-buffer + low-disk)
 #
-# The standalone gnss-receiver.service (oneshot receiver config) is
-# DEPRECATED in v1.0.0+. ExecStartPre inside gnss-capture.service now owns
-# that responsibility. install.sh disables and masks the legacy unit if it
-# is found on the target so operators do not keep seeing its stale
-# failed-state in `systemctl status`.
-#
 # Safe to run on an already-configured host. Records the deployed version
 # (from base_station/VERSION) to /home/xeroth/base_station/state/version.
 #
@@ -61,12 +55,12 @@ if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
 fi
 echo "Installing base_station v${VERSION}"
 
-echo "[1/10] Create directories"
+echo "[1/9] Create directories"
 mkdir -p "${DEST_SCRIPTS}" "${DEST_STATE}" "${DEST_LOGS}" "${DEST_RAW}" "${DEST_STAGING}"
 chown -R "${USER_NAME}:${GROUP_NAME}" /home/xeroth/base_station
 chmod 0755 "${DEST_SCRIPTS}" "${DEST_STATE}" "${DEST_LOGS}" "${DEST_RAW}" "${DEST_STAGING}"
 
-echo "[2/10] Deploy scripts"
+echo "[2/9] Deploy scripts"
 install -m 0755 -o "${USER_NAME}" -g "${GROUP_NAME}" \
     "${PAYLOAD}/scripts/gnss_upload_worker.sh" "${DEST_SCRIPTS}/gnss_upload_worker.sh"
 install -m 0755 -o "${USER_NAME}" -g "${GROUP_NAME}" \
@@ -84,14 +78,7 @@ install -m 0755 -o "${USER_NAME}" -g "${GROUP_NAME}" \
 # entry point between OTA runs.
 install -m 0755 -o root -g root \
     "${PAYLOAD}/scripts/apply_update.sh" "${DEST_SCRIPTS}/apply_update.sh"
-# Retain the legacy manual utility for ad-hoc one-offs only — not wired
-# into systemd or cron in v1.0.0+.
-if [ -f "${PAYLOAD}/scripts/log_and_upload.sh" ]; then
-    install -m 0755 -o "${USER_NAME}" -g "${GROUP_NAME}" \
-        "${PAYLOAD}/scripts/log_and_upload.sh" "${DEST_SCRIPTS}/log_and_upload.sh"
-fi
-
-echo "[3/10] Ensure station.conf has STATION_ID"
+echo "[3/9] Ensure station.conf has STATION_ID"
 STATION_CONF="${DEST_SCRIPTS}/station.conf"
 if [ -n "${STATION_OVERRIDE}" ]; then
     if [ -f "${STATION_CONF}" ]; then
@@ -136,36 +123,20 @@ else
     echo "    uploads: gcloud service account, with over-the-air updates"
 fi
 
-echo "[4/10] Baud.conf"
+echo "[4/9] Baud.conf"
 BAUD_FILE="${DEST_SCRIPTS}/baud.conf"
 if [ ! -f "${BAUD_FILE}" ]; then
     echo 115200 > "${BAUD_FILE}"
     chown "${USER_NAME}:${GROUP_NAME}" "${BAUD_FILE}"
 fi
 
-echo "[5/10] Deploy systemd units"
+echo "[5/9] Deploy systemd units"
 install -m 0644 "${PAYLOAD}/systemd/gnss-capture.service" \
     "${DEST_SYSTEMD}/gnss-capture.service"
 install -m 0644 "${PAYLOAD}/systemd/gnss-health.service" \
     "${DEST_SYSTEMD}/gnss-health.service"
 
-echo "[6/10] Retire legacy gnss-receiver.service"
-# The oneshot was superseded by ExecStartPre in gnss-capture.service.
-# Disable and mask any legacy unit so operators don't keep seeing its
-# stale "failed (start-limit-hit)" state.
-if systemctl list-unit-files gnss-receiver.service >/dev/null 2>&1; then
-    systemctl disable gnss-receiver.service >/dev/null 2>&1 || true
-    systemctl mask gnss-receiver.service    >/dev/null 2>&1 || true
-    systemctl reset-failed gnss-receiver.service 2>/dev/null || true
-fi
-# Remove stale unit file on disk if present — masking alone leaves the
-# file behind. Keep the symlink to /dev/null created by `systemctl mask`.
-if [ -f "${DEST_SYSTEMD}/gnss-receiver.service" ] \
-   && [ ! -L "${DEST_SYSTEMD}/gnss-receiver.service" ]; then
-    rm -f "${DEST_SYSTEMD}/gnss-receiver.service"
-fi
-
-echo "[7/10] Systemd reload and enable"
+echo "[6/9] Systemd reload and enable"
 systemctl daemon-reload
 systemctl enable gnss-capture.service gnss-health.service >/dev/null
 systemctl restart gnss-health.service
@@ -174,7 +145,7 @@ systemctl restart gnss-health.service
 # also the first-ever start.
 systemctl restart gnss-capture.service
 
-echo "[8/10] Install sudoers fragments"
+echo "[7/9] Install sudoers fragments"
 # (a) watchdog: restart gnss-capture.service only
 SUDOERS_WATCHDOG="/etc/sudoers.d/gnss-watchdog"
 cat > "${SUDOERS_WATCHDOG}.new" <<EOF
@@ -206,7 +177,7 @@ else
     exit 1
 fi
 
-echo "[9/10] Install crontab"
+echo "[8/9] Install crontab"
 # fs.protected_regular=2 (default on Debian 13) blocks even root from
 # opening a non-root-owned file in /tmp. Do all crontab work as xeroth.
 CRON_TMP=$(sudo -u "${USER_NAME}" mktemp -t snaresar-cron.XXXXXX)
@@ -214,7 +185,6 @@ trap 'sudo -u '"${USER_NAME}"' rm -f "'"${CRON_TMP}"'"' EXIT
 sudo -u "${USER_NAME}" bash -c "crontab -l 2>/dev/null > '${CRON_TMP}' || true"
 # Strip any pre-existing snareSAR lines (legacy + current).
 sudo -u "${USER_NAME}" sed -i '/snareSAR GNSS base station/d' "${CRON_TMP}"
-sudo -u "${USER_NAME}" sed -i '/log_and_upload\.sh/d' "${CRON_TMP}"
 sudo -u "${USER_NAME}" sed -i '/gnss_upload_worker\.sh/d' "${CRON_TMP}"
 sudo -u "${USER_NAME}" sed -i '/gnss-watchdog\.sh/d' "${CRON_TMP}"
 sudo -u "${USER_NAME}" sed -i '/gnss-disk-guard\.sh/d' "${CRON_TMP}"
@@ -235,7 +205,7 @@ fi
 sudo -u "${USER_NAME}" crontab "${CRON_TMP}"
 echo "    installed crontab for ${USER_NAME}"
 
-echo "[10/10] Record deployed version and initialise channel state"
+echo "[9/9] Record deployed version and initialise channel state"
 echo "${VERSION}" > "${DEST_STATE}/version"
 echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") installed v${VERSION}" >> "${DEST_STATE}/version.log"
 # Default release channel: pre-release versions (x.y.z-suffix) follow canary,

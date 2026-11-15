@@ -9,3 +9,6 @@ __pycache__/
 *.out
 *.tar.gz
 *.tar.gz.sha256
+
+# Local staging for service-account keys (never commit)
+.secrets/

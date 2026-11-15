@@ -15,8 +15,7 @@ User=xeroth
 # ensure_receiver.py probes /dev/ttyUSB0, verifies UBX at 115200, and
 # re-applies CFG-VALSET if the receiver has lost configuration (e.g. after
 # brown-out). A non-zero exit triggers the normal failure path
-# (Restart=on-failure). This replaces the standalone gnss-receiver.service
-# oneshot which is now deprecated and masked by install.sh.
+# (Restart=on-failure).
 ExecStartPre=/usr/bin/python3 /home/xeroth/base_station/scripts/ensure_receiver.py
 #
 # str2str runs as a resident process holding /dev/ttyUSB0 exclusively,

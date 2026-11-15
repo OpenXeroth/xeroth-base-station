@@ -7,6 +7,28 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.5] — 2026-11-15
+
+Removed (superseded since the continuous-capture design of April 2026;
+no station runs them):
+
+- `payload/scripts/log_and_upload.sh`, the old single-cycle recorder,
+  and the installer code that copied it and stripped its crontab line.
+- `payload/systemd/gnss-receiver.service` and the installer step that
+  disabled and masked it. `gnss-capture.service` runs
+  `ensure_receiver.py` before every start.
+- `tools/purge_legacy_top_level_ubx.sh` (one-off clean-up of the
+  pre-1.0.0 layout) and `tools/verify_keys_valset.py` (one-off check
+  of receiver configuration key IDs).
+
+Changed:
+
+- Docs: both upload paths (network key, service account) in
+  OPERATIONS.md and the deploy runbook; the runbook's prefix-scoped IAM
+  condition, which `infra/README.md` explains does not work, removed;
+  32-bit stations (XER1, Raspberry Pi 2) noted as network-key only; CI
+  described as GitHub-hosted. base.xeroth.ai lists XER1 and XER2.
+
 ## [1.2.4] — 2026-11-14
 
 Fixed:

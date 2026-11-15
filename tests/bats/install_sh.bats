@@ -9,8 +9,6 @@
 #   - Idempotency: re-running MUST NOT wipe STATION_ID/station.conf.
 #   - OTA integration: installs apply_update.sh as root-owned, installs
 #     the sudoers fragment for the update agent, drops the cron entry.
-#   - Legacy cleanup: disables AND masks gnss-receiver.service so operators
-#     never see its stale failed state.
 #   - Version recording: writes base_station/VERSION into state/version.
 # =============================================================================
 
@@ -22,11 +20,6 @@ setup() {
 @test "install.sh validates VERSION file against semver" {
     grep -q 'VERSION=\$(tr -d' "$INSTALL"
     grep -qE 'VERSION.*=~.*\^\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+' "$INSTALL"
-}
-
-@test "install.sh disables AND masks legacy gnss-receiver.service" {
-    grep -q 'systemctl disable gnss-receiver.service' "$INSTALL"
-    grep -q 'systemctl mask gnss-receiver.service' "$INSTALL"
 }
 
 @test "install.sh installs apply_update.sh as root-owned" {

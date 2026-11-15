@@ -11,25 +11,36 @@ On your laptop:
 
 - Tailscale, with admin access to the tailnet the station joins.
 - `ssh` to `xeroth@<station-host>` working.
-- `gcloud` authenticated as an owner of the GCP project that owns
+- For a station that uploads with a Google service account (Xeroth's
+  own stations that take over-the-air updates): `gcloud` authenticated
+  as an owner of the GCP project that owns
   `gs://xeroth-base-stations-data` and `gs://xeroth-base-stations-releases`.
+  A station that uploads with a network key needs neither.
 
 On the station host:
 
-- Debian/Ubuntu-class Linux (the reference is RPi OS bookworm on a
-  Pi 5; Ubuntu 22.04+ also tested).
+- Debian/Ubuntu-class Linux. The reference is Raspberry Pi OS (Trixie)
+  on a Pi 5 (XER2). XER1 runs 32-bit Raspberry Pi OS Lite on a Pi 2;
+  Google's `gcloud` has no 32-bit ARM build, so a 32-bit station must
+  upload with a network key.
 - `rtklib` providing `/usr/local/bin/str2str` and `/usr/local/bin/convbin`.
-- `gcloud`, `tailscale`, `python3` (3.9+), `python3-serial`.
+- `tailscale`, `python3` (3.9+), `python3-serial`, `curl`; `gcloud`
+  only for service-account uploads.
 - A `xeroth` Linux user with home at `/home/xeroth`.
 - The u-blox receiver enumerated at `/dev/ttyUSB0`. If your USB-serial
   cable enumerates elsewhere, fix the `dev-ttyUSB0.device` reference
   in `payload/systemd/gnss-capture.service` before running install.sh.
 
-## 1. Stage the station service account and key
+## 1. Give the station a way to upload
 
-On your laptop, create a per-station SA with prefix-scoped write to
-the data bucket (see `infra/README.md` § "Per-station uploader
-service account" for the IAM details):
+**Network key.** Create the station on the base.xeroth.ai dashboard
+(an approved operator sees its identifier and upload key there; the
+key is shown once). Put `STATION_ID=` and `UPLOAD_KEY=` in
+`station.conf` in step 2 and skip the rest of this step.
+
+**Service account.** On your laptop, create a per-station SA with write
+access to the data bucket (see `infra/README.md` § "Per-station
+uploader service account" for why the grant is unconditional):
 
 ```bash
 PROJECT=xeroth-base-stations
@@ -43,8 +54,7 @@ gcloud iam service-accounts create "${SA_ID}" \
 gcloud storage buckets add-iam-policy-binding \
     gs://xeroth-base-stations-data \
     --role=roles/storage.objectUser \
-    --member="serviceAccount:${SA_ID}@${PROJECT}.iam.gserviceaccount.com" \
-    --condition="title=${STATION}-prefix-only,expression=resource.name.startsWith('projects/_/buckets/xeroth-base-stations-data/objects/${STATION}/')"
+    --member="serviceAccount:${SA_ID}@${PROJECT}.iam.gserviceaccount.com"
 
 gcloud storage buckets add-iam-policy-binding \
     gs://xeroth-base-stations-releases \
@@ -121,7 +131,6 @@ run it:
   `/home/xeroth/base_station/scripts/`.
 - Installs `gnss-capture.service` and `gnss-health.service` to
   `/etc/systemd/system/`, enables and starts both.
-- Masks the legacy `gnss-receiver.service` if found.
 - Installs two sudoers fragments under `/etc/sudoers.d/`:
   - `gnss-watchdog` — allows `xeroth` to restart `gnss-capture.service`.
   - `gnss-update-agent` — allows `xeroth` to invoke the OTA apply

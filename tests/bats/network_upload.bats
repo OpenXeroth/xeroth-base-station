@@ -2,7 +2,7 @@
 # =============================================================================
 # gnss_upload_worker.sh uploading with a network key (UPLOAD_KEY=), run for
 # real against a local HTTP server that behaves like base.xeroth.ai/v1:
-# 201 for the right key, 401 otherwise.
+# 201 for the right key, 401 otherwise, 409 for a file it already holds.
 # =============================================================================
 
 setup() {
@@ -20,7 +20,10 @@ class H(http.server.BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers["Content-Length"]))
         if self.headers.get("Authorization") != "Bearer xrx_goodid_goodsecret":
             self.send_response(401); self.end_headers(); self.wfile.write(b'{"detail":"no"}'); return
-        (out / self.path.replace("/", "_")).write_bytes(body)
+        target = out / self.path.replace("/", "_")
+        if target.exists():
+            self.send_response(409); self.end_headers(); self.wfile.write(b'{"detail":"already stored"}'); return
+        target.write_bytes(body)
         self.send_response(201); self.end_headers(); self.wfile.write(b'{"stored":"ok"}')
     def log_message(self, *a): pass
 http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
@@ -65,4 +68,29 @@ conf() {
 @test "the key is never on curl's command line" {
     ! grep -nE 'CURL_EXEC.*UPLOAD_KEY|curl .*Bearer \$' "${WORKER}"
     grep -q -- '-K -' "${WORKER}"
+}
+
+@test "a file the network already holds (409) is treated as done and removed" {
+    conf xrx_goodid_goodsecret
+    printf 'earlier copy\n' > "${TMP}/received/_v1_stations_XER7_files_202610271540.obs"
+    run "${WORKER}"
+    [ "$status" -eq 0 ]
+    [ ! -e "${GNSS_BASE_DIR}/logs/202610271540.obs" ]
+    [ ! -e "${GNSS_BASE_DIR}/logs/202610271540.nav" ]
+    grep -q "Already stored: 202610271540.obs (HTTP 409)" "${GNSS_BASE_DIR}/logs/automation.log"
+    [ "$(cat "${TMP}/received/_v1_stations_XER7_files_202610271540.obs")" = "earlier copy" ]
+}
+
+@test "a slot whose .obs was already uploaded uploads its .nav without converting again" {
+    conf xrx_goodid_goodsecret
+    rm -f "${GNSS_BASE_DIR}/logs/202610271540.obs"
+    printf 'raw\n' > "${GNSS_BASE_DIR}/logs/raw/202610271540.ubx"
+    touch -d '10 minutes ago' "${GNSS_BASE_DIR}/logs/raw/202610271540.ubx"
+    run "${WORKER}"
+    [ "$status" -eq 0 ]
+    [ -s "${TMP}/received/_v1_stations_XER7_files_202610271540.nav" ]
+    [ ! -e "${TMP}/received/_v1_stations_XER7_files_202610271540.obs" ]
+    [ ! -e "${GNSS_BASE_DIR}/logs/202610271540.obs" ]
+    [ ! -e "${GNSS_BASE_DIR}/logs/raw/202610271540.ubx" ]
+    grep -q "Slot 202610271540 complete" "${GNSS_BASE_DIR}/logs/automation.log"
 }

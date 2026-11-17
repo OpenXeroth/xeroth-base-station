@@ -196,6 +196,9 @@ upload_and_verify() {
 
 # PUT one file to the network with the station's key. The server replies
 # 201 only after the file is stored, so that reply is the verification.
+# 409 means the network already holds a file of that name: an earlier upload
+# was stored but its reply never arrived. The file is done, so it is removed
+# here too rather than retried for ever.
 # The key is passed on stdin to curl so it never appears in ps output.
 upload_to_network() {
     local local_file="$1"
@@ -211,6 +214,11 @@ upload_to_network() {
     if [ ${rc} -eq 124 ] || [ ${rc} -eq 137 ]; then
         log "TIMEOUT: upload exceeded ${GCLOUD_TIMEOUT_S}s for ${basename}"
         return 2
+    fi
+    if [ "${http_code}" = "409" ]; then
+        log "Already stored: ${basename} (HTTP 409); local copy removed"
+        rm -f "${local_file}"
+        return 0
     fi
     if [ "${http_code}" != "201" ]; then
         log "ERROR: upload failed for ${basename} (curl rc=${rc}, HTTP ${http_code}): $(cat "${LOG_DIR}/.upload_reply" "${LOG_DIR}/.upload_err" 2>/dev/null | head -c 300)"
@@ -258,6 +266,14 @@ ensure_rinex() {
     fi
 
     if [ -s "${rinex_obs}" ] && [ -s "${rinex_nav}" ]; then
+        return 0
+    fi
+    # One of the pair is here and the other is not: the other was uploaded,
+    # and deleted, on an earlier run whose second upload failed. Converting
+    # again would make a new copy of a file the store already holds (it
+    # differs only in its PGM / RUN BY / DATE line), and the network refuses
+    # to replace a stored file, so the slot would never complete.
+    if [ -s "${rinex_obs}" ] || [ -s "${rinex_nav}" ]; then
         return 0
     fi
 

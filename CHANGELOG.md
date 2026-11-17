@@ -7,6 +7,20 @@ every release is tagged with its semver in git (`vMAJOR.MINOR.PATCH`).
 The on-station state file `/home/xeroth/base_station/state/version`
 records what is actually deployed at each box.
 
+## [1.2.6] — 2026-11-17
+
+Fixed:
+
+- A network-key station retried some uploads for ever. When the second of
+  a slot's two uploads failed (a brief loss of internet at Djuma on 16
+  November), the next run converted the raw recording again and tried to
+  upload a new copy of the file already stored; the network refuses to
+  replace a stored file, so XER1 kept 21 slots (16-17 November) on its card
+  and reported itself degraded, although every one of them was already in
+  the store. The uploader no longer converts a slot again when one of its
+  two files has already gone, and treats HTTP 409 ("already stored", from
+  xeroth-network once it answers that way instead of 500) as done.
+
 ## [1.2.5] — 2026-11-15
 
 Removed (superseded since the continuous-capture design of April 2026;
